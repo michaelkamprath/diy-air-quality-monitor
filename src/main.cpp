@@ -1,20 +1,22 @@
 #include <Arduino.h>
-#include "AirQualitySensor.h"
+#include "Application.h"
 
-AirQualitySensor* sensor = nullptr;
+Application* app = nullptr;
 
 void setup()
 {
   // Used for debug output only
   Serial.begin(9600);
-  sensor = new AirQualitySensor();
+  app = new Application();
+
 }
 
-#define AQM_BUFFER_SIZE 32
+
 
 void loop()
 {
-  sensor->updateSensorReading();
+  app->loop();
 
-  delay(10000);
+  delay(60000);
 }
+
