@@ -3,7 +3,8 @@
 
 //
 // Sensor Type = Panasonic SN-GCJA5
-// 
+//   https://na.industrial.panasonic.com/products/sensors/air-quality-gas-flow-sensors/lineup/laser-type-pm-sensor/series/123557/model/123559
+//
 
 #define AQM_BUFFER_SIZE 32
 #define AQMSerial Serial1
@@ -39,19 +40,19 @@ bool AirQualitySensor::updateSensorReading(void)
         recieveCount++; 
     }
     if (recieveCount != AQM_BUFFER_SIZE) {
-        Serial.print(F("ERROR: did not recieve full data set from sensor. Bytes recieved = "));
+        Serial.print(F("ERROR: did not receive full data set from sensor. Bytes recieved = "));
         Serial.print(recieveCount);
         Serial.print(F("\n"));
         return false;
     }
 
     if ((buffer[0] != 0x02) || (buffer[AQM_BUFFER_SIZE-1] != 0x03)) {
-        Serial.println(F("ERROR: data recieved from sensor did not have proper start or stop byte."));
+        Serial.println(F("ERROR: data received from sensor did not have proper start or stop byte."));
         return false;
     }
 
     // TODO check XOR 
-    Serial.print(F("    Recieved data = "));
+    Serial.print(F("    Received data = "));
     print_buffer(buffer, recieveCount);
 
     // calculate values
