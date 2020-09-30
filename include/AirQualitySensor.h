@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <Array.h>
 
-#define AIR_QUALITY_SENSOR_UPDATE_SECONDS   60
+#define AIR_QUALITY_SENSOR_UPDATE_SECONDS   30
 #define AIR_QUALITY_SENSOR_HISTORY_SIZE     86400/AIR_QUALITY_SENSOR_UPDATE_SECONDS
 
 class AirQualitySensor {
@@ -46,7 +46,7 @@ public:
     uint8_t statusLaser(void) const;
     uint8_t statusFan(void) const;
 
-   // average value needed to calculat AQI
+   // average value needed to calculate AQI
    float averagePM2p5( void ) const;
    float airQualityIndex( void ) const;
    int32_t airQualityIndexLookbackWindowSeconds( void ) const;
