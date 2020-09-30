@@ -12,11 +12,14 @@ void setup()
 }
 
 
-
+uint32_t loopCounter = 0;
 void loop()
 {
-  app->loop();
+  loopCounter++;
 
-  delay(60000);
+  // slow down the call to the app loop some. 
+  if (loopCounter%1000 == 0) {
+    app->loop();
+  }
 }
 

@@ -4,6 +4,7 @@
 
 class Application {
 private:
+    time_t _last_update_time;
     AirQualitySensor _sensor;
 
     void printLocalTime(void);

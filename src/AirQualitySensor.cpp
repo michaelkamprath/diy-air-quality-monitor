@@ -19,7 +19,9 @@ AirQualitySensor::AirQualitySensor()
         _particleCount5p0um(0),
         _particleCount7p5um(0),
         _particleCount10um(0),
-       _sensorStatus(0)
+       _sensorStatus(0),
+       _pm2p5_history(),
+       _pm2p5_history_insertion_idx(0)
 {
 
 
@@ -77,9 +79,24 @@ bool AirQualitySensor::updateSensorReading(void)
     print_buffer(buffer, recieveCount);
 
     // calculate values
-    _pm1p0 = (uint_fast32_t)buffer[4]*256*256*256 + (uint_fast32_t)buffer[3]*256*256 + (uint_fast32_t)buffer[2]*256 + buffer[1];
-    _pm2p5 = (uint_fast32_t)buffer[8]*256*256*256 + (uint_fast32_t)buffer[7]*256*256 + (uint_fast32_t)buffer[6]*256 + buffer[5];
-    _pm10 = (uint_fast32_t)buffer[12]*256*256*256 + (uint_fast32_t)buffer[11]*256*256 + (uint_fast32_t)buffer[10]*256 + buffer[9];
+    //
+    // The English documentation for sensor communications is foound here:
+    //      https://b2b-api.panasonic.eu/file_stream/pids/fileversion/8814
+    // it is very confusing and clearly not written by someone who speaks  English. What is unclear
+    // is that the I2C and UART interfaces actually provide numbers that are formatted differently.
+    // Using Google translate on the Japanse version of the document yields a much better translation.
+    // In that translation, it becomes clearer that the mass density measurements are scaled by 
+    // 1000 in the I2C interface, and NOT sclaed by 1000 in the UART interface. Furthermore, despite
+    // the UART interface providing 4 bytes for the mass densities, the number provided is in fact a
+    // 16 bit integer. I realize that the English document says something to that extent, but the sentence
+    // was extremely confusing. Triangulating between the Google translated Japanese document and the 
+    // official English document yielded better insights into what is actuaslly happening.
+    //
+    // Despite the mass densities only being uint16_t integers in the UART interface, I still calculate them
+    // as if they are uint32_t since 4 bytes are provided.
+    _pm1p0 = ((uint32_t)buffer[4])*256*256*256 + ((uint32_t)buffer[3])*256*256 + ((uint32_t)buffer[2])*256 + buffer[1];
+    _pm2p5 = ((uint32_t)buffer[8])*256*256*256 + ((uint32_t)buffer[7])*256*256 + ((uint32_t)buffer[6])*256 + buffer[5];
+    _pm10 = ((uint32_t)buffer[12])*256*256*256 + ((uint32_t)buffer[11])*256*256 + ((uint32_t)buffer[10])*256 + buffer[9];
     _particleCount0p5um = (uint16_t)buffer[14]*256 + buffer[13];
     _particleCount1p0um = (uint16_t)buffer[16]*256 + buffer[15];
     _particleCount2p5um = (uint16_t)buffer[18]*256 + buffer[17];
@@ -88,6 +105,19 @@ bool AirQualitySensor::updateSensorReading(void)
     _particleCount10um = (uint16_t)buffer[26]*256 + buffer[25];
 
     _sensorStatus = buffer[29];
+
+    if (_pm2p5_history.size() < _pm2p5_history.max_size()) {
+         _pm2p5_history.push_back(_pm2p5);
+    } else {
+        // make _pm2p5_history behave like a FIFO stack, but
+        // we really don't care about the stack order, so do 
+        // so in a compute optimized manner.
+        _pm2p5_history[_pm2p5_history_insertion_idx] = _pm2p5;
+        _pm2p5_history_insertion_idx++;
+        if (_pm2p5_history_insertion_idx >= _pm2p5_history.size()) {
+            _pm2p5_history_insertion_idx = 0;
+        }
+    }
 
     Serial.print(F("    PM1.0 = "));
     Serial.print(_pm1p0);
@@ -113,4 +143,60 @@ uint8_t AirQualitySensor::statusLaser(void) const
 uint8_t AirQualitySensor::statusFan(void) const
 {
     return (_sensorStatus&0x03);
+}
+
+float AirQualitySensor::averagePM2p5( void ) const
+{
+    uint32_t pm2p5_sum = 0;
+    for (size_t i = 0; i < _pm2p5_history.size(); i++ ) {
+        pm2p5_sum += _pm2p5_history.at(i);
+    }
+    return (float)pm2p5_sum/(float)_pm2p5_history.size();
+}
+
+int32_t AirQualitySensor::airQualityIndexLookbackWindowSeconds( void ) const
+{
+    // this value makesd the grand assumption that all measurements suceed. That is, it 
+    // does not account for measurement holes caused by intermitent sensor failures. For the
+    // purposes of what this value is used for, which is to determine when the AQI is based on 
+    // a 24 hour average, thiscaveat isn't really that important. Just acknowledging it exists.
+    return _pm2p5_history.size()*(int32_t)AIR_QUALITY_SENSOR_UPDATE_SECONDS;
+}
+
+float AirQualitySensor::airQualityIndex( void ) const
+{
+    // 
+    // Calculate teh AQI. Got this formula from:
+    //   https://www.epa.gov/sites/production/files/2014-05/documents/zell-aqi.pdf
+    //
+    float avgPM2p5 = averagePM2p5();
+
+    float lowPM2p5, highPM2p5, lowAQI, highAQI;
+
+    if (avgPM2p5 <= 15.5) {
+        lowPM2p5 = 0;
+        highPM2p5 = 15.5;
+        lowAQI = 0;
+        highAQI = 51;
+    } else if (avgPM2p5 <= 40.5) {
+        lowPM2p5 = 15.5;
+        highPM2p5 = 40.5;
+        lowAQI = 51;
+        highAQI = 101;
+    } else if (avgPM2p5 <= 65.5) {
+        lowPM2p5 = 40.5;
+        highPM2p5 = 65.5;
+        lowAQI = 101;
+        highAQI = 151;
+    } else {
+        // the provided formula has an upper bound of 150.5 for a max
+        // AQI of 201. This approach allows for extrapolation beyonf an
+        // AQI of 201.
+        lowPM2p5 = 65.5;
+        highPM2p5 = 150.5;
+        lowAQI = 151;
+        highAQI = 201;
+    }
+
+    return lowAQI + (highAQI - lowAQI)*(avgPM2p5 - lowPM2p5)/(highPM2p5 - lowPM2p5);
 }

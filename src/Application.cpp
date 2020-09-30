@@ -81,9 +81,15 @@ void Application::printLocalTime(void)
 
 void Application::loop(void)
 {
-  Serial.println(F("Fetching current sensor data."));
   time_t timestamp;
   time(&timestamp);
+
+  if ((timestamp - _last_update_time) < AIR_QUALITY_SENSOR_UPDATE_SECONDS) {
+    return;
+  }
+
+  Serial.println(F("Fetching current sensor data."));
+  _last_update_time = timestamp;
 
   if (_sensor.updateSensorReading()) {
     DynamicJsonDocument doc(1024);
@@ -100,7 +106,9 @@ void Application::loop(void)
     doc["sensor_status"]["partical_detector"] = _sensor.statusParticleDetector();
     doc["sensor_status"]["laser"] = _sensor.statusLaser();
     doc["sensor_status"]["fan"] = _sensor.statusFan();
-
+    doc["air_quality_index"]["average_pm2.5"] = _sensor.averagePM2p5();
+    doc["air_quality_index"]["aqi"] = _sensor.airQualityIndex();
+    doc["air_quality_index"]["time_window_seconds"] = _sensor.airQualityIndexLookbackWindowSeconds();
 
     Serial.print(F("    json payload = "));
     serializeJson(doc, Serial);
@@ -117,6 +125,7 @@ void Application::loop(void)
       int httpResponseCode = http.POST(requestBody);
       if (httpResponseCode>0) {
         String response = http.getString();
+        response.trim();
 
         Serial.print(F("    POSTED data to telemetry service with response code = "));                
         Serial.print(httpResponseCode);  
