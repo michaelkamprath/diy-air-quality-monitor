@@ -64,12 +64,14 @@ bool AirQualitySensor::updateSensorReading(void)
         Serial.print(buffer[0], HEX);
         Serial.print(F(", stop byte = 0x"));
         Serial.print(buffer[AQM_BUFFER_SIZE-1], HEX);
-        Serial.print(F("\n"));
+        Serial.print(F("\n    Flushing input buffer "));
         // This error likely occurs because we got out of synch with the sensor's internal update cycle.
-        // We will read one more byte in order to slowly get into the right phase with the sensor.
-        if (AQMSerial.available()) {
+        // We will read more bytes in order to slowly get into the right phase with the sensor.
+        while (AQMSerial.available()) {
             AQMSerial.read();
+            Serial.print(F("."));
         }
+        Serial.print(F("\n"));
         return false;
     }
 
@@ -85,6 +87,7 @@ bool AirQualitySensor::updateSensorReading(void)
     // it is very confusing and clearly not written by someone who speaks  English. What is unclear
     // is that the I2C and UART interfaces actually provide numbers that are formatted differently.
     // Using Google translate on the Japanse version of the document yields a much better translation.
+    //      https://industrial.panasonic.com/content/data/PPL/PDF/JA5-SSP-COMM-v10_Communication-Spec_j.pdf
     // In that translation, it becomes clearer that the mass density measurements are scaled by 
     // 1000 in the I2C interface, and NOT sclaed by 1000 in the UART interface. Furthermore, despite
     // the UART interface providing 4 bytes for the mass densities, the number provided is in fact a
@@ -167,35 +170,50 @@ float AirQualitySensor::airQualityIndex( void ) const
 {
     // 
     // Calculate teh AQI. Got this formula from:
-    //   https://www.epa.gov/sites/production/files/2014-05/documents/zell-aqi.pdf
+    //   https://www.epa.gov/sites/production/files/2016-04/documents/2012_aqi_factsheet.pdf
     //
     float avgPM2p5 = averagePM2p5();
 
     float lowPM2p5, highPM2p5, lowAQI, highAQI;
 
-    if (avgPM2p5 <= 15.5) {
+    if (avgPM2p5 <= 12.0) {
         lowPM2p5 = 0;
-        highPM2p5 = 15.5;
+        highPM2p5 = 12;
         lowAQI = 0;
-        highAQI = 51;
-    } else if (avgPM2p5 <= 40.5) {
-        lowPM2p5 = 15.5;
-        highPM2p5 = 40.5;
-        lowAQI = 51;
-        highAQI = 101;
-    } else if (avgPM2p5 <= 65.5) {
-        lowPM2p5 = 40.5;
-        highPM2p5 = 65.5;
-        lowAQI = 101;
-        highAQI = 151;
+        highAQI = 50;
+    } else if (avgPM2p5 <= 35.4) {
+        lowPM2p5 = 12;
+        highPM2p5 = 35.4;
+        lowAQI = 50;
+        highAQI = 100;
+    } else if (avgPM2p5 <= 55.4) {
+        lowPM2p5 = 35.4;
+        highPM2p5 = 55.4;
+        lowAQI = 100;
+        highAQI = 150;
+    } else if (avgPM2p5 <= 150.4) {
+        lowPM2p5 = 55.4;
+        highPM2p5 = 150.4;
+        lowAQI = 150;
+        highAQI = 200;
+    } else if (avgPM2p5 <= 250.4) {
+        lowPM2p5 = 150.4;
+        highPM2p5 = 250.4;
+        lowAQI = 200;
+        highAQI = 300;
+    } else if (avgPM2p5 <= 350.4) {
+        lowPM2p5 = 250.4;
+        highPM2p5 = 350.4;
+        lowAQI = 300;
+        highAQI = 400;
     } else {
-        // the provided formula has an upper bound of 150.5 for a max
-        // AQI of 201. This approach allows for extrapolation beyonf an
-        // AQI of 201.
-        lowPM2p5 = 65.5;
-        highPM2p5 = 150.5;
-        lowAQI = 151;
-        highAQI = 201;
+        // the provided formula has an upper bound of PM2.5 = 500 for a max
+        // AQI of 500. This approach allows for extrapolation beyond an
+        // AQI of 500.
+        lowPM2p5 = 350.4;
+        highPM2p5 = 500;
+        lowAQI = 400;
+        highAQI = 500;
     }
 
     return lowAQI + (highAQI - lowAQI)*(avgPM2p5 - lowPM2p5)/(highPM2p5 - lowPM2p5);
