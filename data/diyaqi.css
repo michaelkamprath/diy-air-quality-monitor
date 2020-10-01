@@ -1,18 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap');
+
+.title {
+    font-family: "Arial Black", Gadget, sans-serif;
+    text-align: center;
+    font-size: 28px;
+}
+
+.aqi-green {
+    background-color: #82E0AA;
+    color: back;
+}
+
+.aqi-yellow {
+    background-color: #FCF3CF;
+    color: black;
+}
+
+.aqi-orange {
+	background-color: #F8C471;
+	color: black;
+}
+
+.aqi-red {
+    background-color: #F5B7B1;
+    -webkit-text-fill-color: #F0F0F0;
+    -webkit-text-stroke-width: 1px;
+    -webkit-text-stroke-color: black;
+}
+
+.aqi-purple {
+    background-color: #8E44AD;
+    -webkit-text-fill-color: #F0F0F0;
+    -webkit-text-stroke-width: 1px;
+    -webkit-text-stroke-color: black;
+}
+
+.aqi-maroon {
+    background-color: #800000;
+    -webkit-text-fill-color: #F0F0F0;
+    -webkit-text-stroke-width: 1px;
+    -webkit-text-stroke-color: black;
+}
+
 .aqi-value {
-    font-family: Archivo, sans-serif;
-    font-size: 100px;
-    font-weight: 100;
-    color: rgba(0, 0, 0, 1);
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 120px;
+    font-weight: 150;
     text-transform: none;
     font-style: normal;
     text-decoration: none;
     line-height: 1em;
     letter-spacing: 0px;
     text-align: center;
+    margin-top: 24px;
+    padding-top: 16px;
+    padding-bottom: 16px;
 }
 .sensor-name {
-    font-family: Archivo Black, sans-serif;
-    font-size: 20px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 14px;
     font-weight: 100;
     color: rgba(110, 110, 110, 1);
     text-transform: none;
@@ -21,4 +67,5 @@
     line-height: 1em;
     letter-spacing: 0px;
     text-align: center;
+    padding-top: 8px;
 }
