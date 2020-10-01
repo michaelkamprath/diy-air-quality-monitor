@@ -46,10 +46,18 @@ public:
     uint8_t statusLaser(void) const;
     uint8_t statusFan(void) const;
 
-   // average value needed to calculate AQI
-   float averagePM2p5( void ) const;
-   float airQualityIndex( void ) const;
-   int32_t airQualityIndexLookbackWindowSeconds( void ) const;
+   // returns PM2.5 average value for the prior window_size_seconds seconds
+   float averagePM2p5( int32_t window_size_seconds ) const;
+
+   // return AQI for the given average PM2.5
+   float airQualityIndex( float avg_pm2p5 ) const;
+
+   // convenience functions
+   float currentAirQualityIndex(void) const         { return airQualityIndex(averagePM2p5(AIR_QUALITY_SENSOR_UPDATE_SECONDS)); }
+   float tenMinuteAirQualityIndex(void) const       { return airQualityIndex(averagePM2p5(60*10)); }
+   float oneHourAirQualityIndex(void) const         { return airQualityIndex(averagePM2p5(60*60)); }
+   float oneDayAirQualityIndex(void) const          { return airQualityIndex(averagePM2p5(60*60*24)); }
+
 };
 
 #endif
