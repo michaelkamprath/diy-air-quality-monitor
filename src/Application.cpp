@@ -1,8 +1,9 @@
-#include <WiFi.h>
-#include <ArduinoJson.h>
+#include <Arduino.h>
 #include <HTTPClient.h>
-#include "Application.h"
+#include <ArduinoJson.h>
+#include <SPIFFS.h>
 #include "time.h"
+#include "Application.h"
 
 // the telemetry_url is a RESTful service where all the measurements collected will be POSTed 
 // to as a JSON object. You could post the data to a Google Sheet, or use a simple service
@@ -15,10 +16,62 @@ const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 0;
 const int   daylightOffset_sec = 0;
 
+// this is the sensor name that will be in the telemetry JSON
+const char* sensor_name = "YOUR_SENSORNAME";
 
-Application::Application()
-  : _sensor()
+//
+// webserver handlers
+//
+
+void notFound(AsyncWebServerRequest *request) {
+    request->send(404, "text/plain", "Not found");
+}
+
+String processor(const String& var){
+  if(var == "AQI24HOUR") {
+    return String(Application::getInstance()->sensor().airQualityIndex(), 1);
+  } else if (var == "SENSORNAME") {
+    return String(sensor_name);
+  }
+  return String();
+}
+
+//
+// Application
+//
+
+Application* Application::gApp = nullptr;
+
+Application* Application::getInstance(void)
 {
+  if (gApp == nullptr) {
+    gApp = new Application();
+  }
+
+  return gApp;
+}
+Application::Application()
+  : _sensor(),
+    _server(80),
+    _loopCounter(0),
+    _appSetup(false)
+{
+
+}
+
+Application::~Application()
+{
+
+}
+
+void Application::setup(void)
+{
+  // Initialize SPIFFS
+  if(!SPIFFS.begin(true)){
+    Serial.println("ERROR: Could not mount SPIFFs");
+    return;
+  }
+
   // start the WiFi
   Serial.print(F("Sarting Wifi connection to SSID = "));
   Serial.print(ssid);
@@ -37,13 +90,11 @@ Application::Application()
 
   // start the sensor
   _sensor.begin();
+
+  setupWebserver();
+
+  _appSetup = true;
 }
-
-Application::~Application()
-{
-
-}
-
 void Application::printLocalTime(void)
 {
   struct tm timeinfo;
@@ -79,8 +130,31 @@ void Application::printLocalTime(void)
   Serial.println();
 }
 
+void Application::setupWebserver(void)
+{
+  _server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+      Serial.printf("WEB: %s - %s", request->client()->remoteIP().toString().c_str(), request->url().c_str());
+      request->send(SPIFFS, "/index.html", String(), false, processor);
+  });
+
+  _server.on("/diyaqi.css", HTTP_GET, [](AsyncWebServerRequest *request){
+    Serial.printf("WEB: %s - %s", request->client()->remoteIP().toString().c_str(), request->url().c_str());
+    request->send(SPIFFS, "/diyaqi.css", "text/css");
+  });
+
+  _server.onNotFound(notFound);
+
+  _server.begin();
+}
+
 void Application::loop(void)
 {
+  // slow down loop calls for the sensor
+  _loopCounter++;
+  if (_loopCounter%1000 != 0) {
+    return;
+  }
+
   time_t timestamp;
   time(&timestamp);
 
@@ -94,6 +168,7 @@ void Application::loop(void)
   if (_sensor.updateSensorReading()) {
     DynamicJsonDocument doc(1024);
     doc["timestamp"] = timestamp;
+    doc["sensor_id"] = sensor_name;
     doc["mass_density"]["pm1.0"] = _sensor.PM1p0();
     doc["mass_density"]["pm2.5"] = _sensor.PM2p5();
     doc["mass_density"]["pm10"] = _sensor.PM10();
@@ -132,6 +207,17 @@ void Application::loop(void)
         Serial.print(" and response = \"");
         Serial.print(response);
         Serial.print("\"\n");
+      }
+    } else if (telemetry_url != nullptr) {
+      Serial.print(F("    ERROR - WiFi status is "));
+      Serial.print(WiFi.status());
+      Serial.print(F(", attempting to reconnect."));
+      if (WiFi.reconnect()) {
+        Serial.print(F("    WiFi reconnected with IP address = "));
+        Serial.print(WiFi.localIP());
+        Serial.print(F("\n"));
+      } else {
+        Serial.println(F("    ERROR - failed to reconnect WiFi."));
       }
     }
   }
