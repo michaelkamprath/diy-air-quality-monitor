@@ -32,6 +32,21 @@ String processor(const String& var){
     return String(Application::getInstance()->sensor().tenMinuteAirQualityIndex(), 1);
   } else if (var == "SENSORNAME") {
     return String(sensor_name);
+  } else if (var == "COLORCLASS") {
+    float aqi = Application::getInstance()->sensor().tenMinuteAirQualityIndex();
+    if (aqi <= 50) {
+      return String("aqi-green");
+    } else if (aqi <= 100) {
+      return String("aqi-yellow");
+    } else if (aqi <= 150) {
+      return String("aqi-orange");
+    } else if (aqi <= 200) {
+      return String("aqi-red");
+    } else if (aqi <= 300) {
+      return String("aqi-purple");
+    } else {
+      return String("aqi-maroon");
+    }
   }
   return String();
 }
