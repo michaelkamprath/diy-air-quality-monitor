@@ -133,12 +133,12 @@ void Application::printLocalTime(void)
 void Application::setupWebserver(void)
 {
   _server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-      Serial.printf("WEB: %s - %s", request->client()->remoteIP().toString().c_str(), request->url().c_str());
+      Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
       request->send(SPIFFS, "/index.html", String(), false, processor);
   });
 
   _server.on("/diyaqi.css", HTTP_GET, [](AsyncWebServerRequest *request){
-    Serial.printf("WEB: %s - %s", request->client()->remoteIP().toString().c_str(), request->url().c_str());
+    Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
     request->send(SPIFFS, "/diyaqi.css", "text/css");
   });
 
