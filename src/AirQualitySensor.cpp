@@ -110,16 +110,17 @@ bool AirQualitySensor::updateSensorReading(void)
     _sensorStatus = buffer[29];
 
     if (_pm2p5_history.size() < _pm2p5_history.max_size()) {
-         _pm2p5_history.push_back(_pm2p5);
+        _pm2p5_history.push_back(_pm2p5);
+        _pm2p5_history_insertion_idx = _pm2p5_history.size() - 1;
     } else {
         // make _pm2p5_history behave like a FIFO stack, but
         // we really don't care about the stack order, so do 
         // so in a compute optimized manner.
-        _pm2p5_history[_pm2p5_history_insertion_idx] = _pm2p5;
         _pm2p5_history_insertion_idx++;
         if (_pm2p5_history_insertion_idx >= _pm2p5_history.size()) {
             _pm2p5_history_insertion_idx = 0;
         }
+        _pm2p5_history[_pm2p5_history_insertion_idx] = _pm2p5;
     }
 
     Serial.print(F("    PM1.0 = "));
@@ -148,31 +149,36 @@ uint8_t AirQualitySensor::statusFan(void) const
     return (_sensorStatus&0x03);
 }
 
-float AirQualitySensor::averagePM2p5( void ) const
+float AirQualitySensor::averagePM2p5( int32_t window_size_seconds ) const
 {
-    uint32_t pm2p5_sum = 0;
-    for (size_t i = 0; i < _pm2p5_history.size(); i++ ) {
-        pm2p5_sum += _pm2p5_history.at(i);
-    }
-    return (float)pm2p5_sum/(float)_pm2p5_history.size();
-}
-
-int32_t AirQualitySensor::airQualityIndexLookbackWindowSeconds( void ) const
-{
-    // this value makesd the grand assumption that all measurements suceed. That is, it 
+    // this averaging makes the grand assumption that all measurements suceed. That is, it 
     // does not account for measurement holes caused by intermitent sensor failures. For the
     // purposes of what this value is used for, which is to determine when the AQI is based on 
     // a 24 hour average, thiscaveat isn't really that important. Just acknowledging it exists.
-    return _pm2p5_history.size()*(int32_t)AIR_QUALITY_SENSOR_UPDATE_SECONDS;
+
+    size_t curr_idx = _pm2p5_history_insertion_idx;
+    size_t value_count = 0;
+    uint32_t pm2p5_sum = 0;
+    
+    while (((value_count*AIR_QUALITY_SENSOR_UPDATE_SECONDS) < window_size_seconds) && (value_count < _pm2p5_history.size())) {
+        pm2p5_sum += _pm2p5_history.at(curr_idx);
+        value_count++;
+        if (curr_idx == 0) {
+            curr_idx = _pm2p5_history.size() - 1;
+        } else {
+            curr_idx--;
+        }
+    }
+
+    return (float)pm2p5_sum/(float)value_count;
 }
 
-float AirQualitySensor::airQualityIndex( void ) const
+float AirQualitySensor::airQualityIndex( float avgPM2p5 ) const
 {
     // 
     // Calculate teh AQI. Got this formula from:
     //   https://www.epa.gov/sites/production/files/2016-04/documents/2012_aqi_factsheet.pdf
     //
-    float avgPM2p5 = averagePM2p5();
 
     float lowPM2p5, highPM2p5, lowAQI, highAQI;
 

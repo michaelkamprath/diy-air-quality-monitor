@@ -29,7 +29,7 @@ void notFound(AsyncWebServerRequest *request) {
 
 String processor(const String& var){
   if(var == "AQI24HOUR") {
-    return String(Application::getInstance()->sensor().airQualityIndex(), 1);
+    return String(Application::getInstance()->sensor().tenMinuteAirQualityIndex(), 1);
   } else if (var == "SENSORNAME") {
     return String(sensor_name);
   }
@@ -166,6 +166,11 @@ void Application::loop(void)
   _last_update_time = timestamp;
 
   if (_sensor.updateSensorReading()) {
+    float current_avg_pm2p5 = _sensor.averagePM2p5(AIR_QUALITY_SENSOR_UPDATE_SECONDS);
+    float ten_minutes_avg_pm2p5 = _sensor.averagePM2p5(60*10);
+    float one_hour_avg_pm2p5 = _sensor.averagePM2p5(60*60);
+    float one_day_avg_pm2p5 = _sensor.averagePM2p5(60*60*24);
+
     DynamicJsonDocument doc(1024);
     doc["timestamp"] = timestamp;
     doc["sensor_id"] = sensor_name;
@@ -181,9 +186,14 @@ void Application::loop(void)
     doc["sensor_status"]["partical_detector"] = _sensor.statusParticleDetector();
     doc["sensor_status"]["laser"] = _sensor.statusLaser();
     doc["sensor_status"]["fan"] = _sensor.statusFan();
-    doc["air_quality_index"]["average_pm2.5"] = _sensor.averagePM2p5();
-    doc["air_quality_index"]["aqi"] = _sensor.airQualityIndex();
-    doc["air_quality_index"]["time_window_seconds"] = _sensor.airQualityIndexLookbackWindowSeconds();
+    doc["air_quality_index"]["average_pm2.5_current"] = current_avg_pm2p5;
+    doc["air_quality_index"]["average_pm2.5_10min"] = ten_minutes_avg_pm2p5;
+    doc["air_quality_index"]["average_pm2.5_1hour"] = one_hour_avg_pm2p5;
+    doc["air_quality_index"]["average_pm2.5_24hour"] = one_day_avg_pm2p5;
+    doc["air_quality_index"]["aqi_current"] = _sensor.airQualityIndex(current_avg_pm2p5);
+    doc["air_quality_index"]["aqi_10min"] = _sensor.airQualityIndex(ten_minutes_avg_pm2p5);
+    doc["air_quality_index"]["aqi_1hour"] = _sensor.airQualityIndex(one_hour_avg_pm2p5);
+    doc["air_quality_index"]["aqi_24hour"] = _sensor.airQualityIndex(one_day_avg_pm2p5);
 
     Serial.print(F("    json payload = "));
     serializeJson(doc, Serial);
