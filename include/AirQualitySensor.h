@@ -1,9 +1,9 @@
 #ifndef __AirQualitySensor__
 #define __AirQualitySensor__
 #include <Arduino.h>
-#include <Array.h>
+#include <Vector.h>
 
-#define AIR_QUALITY_SENSOR_UPDATE_SECONDS   30
+#define AIR_QUALITY_SENSOR_UPDATE_SECONDS   15
 #define AIR_QUALITY_SENSOR_HISTORY_SIZE     86400/AIR_QUALITY_SENSOR_UPDATE_SECONDS
 
 class AirQualitySensor {
@@ -19,8 +19,9 @@ private:
     uint16_t    _particleCount10um;
     uint8_t     _sensorStatus;
 
-    Array<uint16_t,AIR_QUALITY_SENSOR_HISTORY_SIZE>    _pm2p5_history;
-    size_t _pm2p5_history_insertion_idx;
+    uint16_t*           _vectorStorage;
+    Vector<uint16_t>    _pm2p5_history;
+    size_t              _pm2p5_history_insertion_idx;
 public:
     AirQualitySensor();
     virtual ~AirQualitySensor();

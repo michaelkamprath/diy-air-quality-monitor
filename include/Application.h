@@ -19,6 +19,11 @@ private:
     void printLocalTime(void);
     void setupWebserver(void);
 
+    // web handlers
+    String getContentType(String filename);
+    String processRootPageHTML(const String& var);
+    void handleRootPageRequest(AsyncWebServerRequest *request);
+    void handleUnassignedPath(AsyncWebServerRequest *request);
 public:
     static Application* getInstance(void);
 

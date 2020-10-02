@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bowlby+One+SC&display=swap');
 
 .title {
     font-family: "Arial Black", Gadget, sans-serif;
@@ -43,8 +43,8 @@
 }
 
 .aqi-value {
-    font-family: 'Archivo Black', sans-serif;
-    font-size: 120px;
+    font-family: 'Bowlby One SC', sans-serif;
+    font-size: 110px;
     font-weight: 150;
     text-transform: none;
     font-style: normal;

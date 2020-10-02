@@ -8,6 +8,8 @@
 
 #define AQM_BUFFER_SIZE 32
 #define AQMSerial Serial1
+#ifdef SERIAL_BUFFER_SIZE
+#endif
 
 AirQualitySensor::AirQualitySensor()
     :   _pm1p0(0),
@@ -19,22 +21,34 @@ AirQualitySensor::AirQualitySensor()
         _particleCount5p0um(0),
         _particleCount7p5um(0),
         _particleCount10um(0),
-       _sensorStatus(0),
-       _pm2p5_history(),
-       _pm2p5_history_insertion_idx(0)
+        _sensorStatus(0),
+        _vectorStorage((uint16_t*)ps_malloc(AIR_QUALITY_SENSOR_HISTORY_SIZE*sizeof(uint16_t))),
+        _pm2p5_history(),
+        _pm2p5_history_insertion_idx(0)
 {
+    _pm2p5_history.setStorage(_vectorStorage, AIR_QUALITY_SENSOR_HISTORY_SIZE, 0);
 
-
+    Serial.printf("Used PSRAM = %d out of total PSRAM = %d\n", ESP.getPsramSize() - ESP.getFreePsram(), ESP.getPsramSize());
 }
 
 AirQualitySensor::~AirQualitySensor()
 {
-
+    free(_vectorStorage);
 }
 
 void AirQualitySensor::begin(void)
 {
     // start hardware serial. RX is pin 33 on TinyPico. Don't really need TX.
+    // TODO: The default RX buffer size is 256, is FIFO, and drops new data when full.
+    // We recieve 32 bytes at a time.  We read from the buffer every AIR_QUALITY_SENSOR_UPDATE_SECONDS,
+    // but the sensor sends bytes every 1 second. This all adds up to we are not getting the
+    // most recent measurement  by not reading every 1 second AND we are dropping 
+    // the most recent measurement if we wait too long.  The TODO here is the rectify that situation, likely
+    // by fetching measurements every second, but only uploading them every 15-30 seconds.
+    // Note we do drain the serial buffer after taking each measurement. So our "current" meausrment
+    // is AIR_QUALITY_SENSOR_UPDATE_SECONDS old when we read it since the first thing in the queue after
+    // we drain it is the measurement that occurs immediately after. Until this TODO is addressed, keep 
+    // AIR_QUALITY_SENSOR_UPDATE_SECONDS a smallish value.
     AQMSerial.begin(9600, SERIAL_8E1, 33, 32 );
 
     // The Panasonic SN-GCJA5 takes 28 seconds to get power up and normalize.
@@ -80,6 +94,14 @@ bool AirQualitySensor::updateSensorReading(void)
     Serial.print(F("    Received data = "));
     print_buffer(buffer, recieveCount);
 
+    // drain the rest of the Serial buffer
+    uint16_t drainedBytes = 0;
+    while(AQMSerial.available()) {
+        AQMSerial.read();
+        drainedBytes++;
+    }
+    Serial.printf("    Drained %d bytes from sensor serial buffer.\n", drainedBytes);
+
     // calculate values
     //
     // The English documentation for sensor communications is foound here:
@@ -93,7 +115,7 @@ bool AirQualitySensor::updateSensorReading(void)
     // the UART interface providing 4 bytes for the mass densities, the number provided is in fact a
     // 16 bit integer. I realize that the English document says something to that extent, but the sentence
     // was extremely confusing. Triangulating between the Google translated Japanese document and the 
-    // official English document yielded better insights into what is actuaslly happening.
+    // official English document yielded better insights into what is actually happening.
     //
     // Despite the mass densities only being uint16_t integers in the UART interface, I still calculate them
     // as if they are uint32_t since 4 bytes are provided.
@@ -176,7 +198,7 @@ float AirQualitySensor::averagePM2p5( int32_t window_size_seconds ) const
 float AirQualitySensor::airQualityIndex( float avgPM2p5 ) const
 {
     // 
-    // Calculate teh AQI. Got this formula from:
+    // Calculate the AQI. Got this formula from:
     //   https://www.epa.gov/sites/production/files/2016-04/documents/2012_aqi_factsheet.pdf
     //
 
