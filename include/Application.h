@@ -9,12 +9,13 @@ class Application {
 private:
     static Application* gApp;
 
+    time_t _boot_time;
     time_t _last_update_time;
     AirQualitySensor _sensor;
     AsyncWebServer _server;
     uint32_t _loopCounter;
     bool _appSetup;
-    
+
     void printLocalTime(void);
     void setupWebserver(void);
 

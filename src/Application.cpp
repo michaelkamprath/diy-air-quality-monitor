@@ -102,6 +102,7 @@ void Application::setup(void)
 
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   printLocalTime();  
+  time(&_boot_time);
 
   // start the sensor
   _sensor.begin();
@@ -189,22 +190,23 @@ void Application::loop(void)
     DynamicJsonDocument doc(1024);
     doc["timestamp"] = timestamp;
     doc["sensor_id"] = sensor_name;
-    doc["mass_density"]["pm1.0"] = _sensor.PM1p0();
-    doc["mass_density"]["pm2.5"] = _sensor.PM2p5();
+    doc["uptime"] = (timestamp - _boot_time);
+    doc["mass_density"]["pm1p0"] = _sensor.PM1p0();
+    doc["mass_density"]["pm2p5"] = _sensor.PM2p5();
     doc["mass_density"]["pm10"] = _sensor.PM10();
-    doc["particle_count"]["0.5um"] = _sensor.particalCount0p5();
-    doc["particle_count"]["1.0um"] = _sensor.particalCount1p0();
-    doc["particle_count"]["2.5um"] = _sensor.particalCount2p5();
-    doc["particle_count"]["5.0um"] = _sensor.particalCount5p0();
-    doc["particle_count"]["7.5um"] = _sensor.particalCount7p5();
+    doc["particle_count"]["0p5um"] = _sensor.particalCount0p5();
+    doc["particle_count"]["1p0um"] = _sensor.particalCount1p0();
+    doc["particle_count"]["2p5um"] = _sensor.particalCount2p5();
+    doc["particle_count"]["5p0um"] = _sensor.particalCount5p0();
+    doc["particle_count"]["7p5um"] = _sensor.particalCount7p5();
     doc["particle_count"]["10um"] = _sensor.particalCount10();
     doc["sensor_status"]["partical_detector"] = _sensor.statusParticleDetector();
     doc["sensor_status"]["laser"] = _sensor.statusLaser();
     doc["sensor_status"]["fan"] = _sensor.statusFan();
-    doc["air_quality_index"]["average_pm2.5_current"] = current_avg_pm2p5;
-    doc["air_quality_index"]["average_pm2.5_10min"] = ten_minutes_avg_pm2p5;
-    doc["air_quality_index"]["average_pm2.5_1hour"] = one_hour_avg_pm2p5;
-    doc["air_quality_index"]["average_pm2.5_24hour"] = one_day_avg_pm2p5;
+    doc["air_quality_index"]["average_pm2p5_current"] = current_avg_pm2p5;
+    doc["air_quality_index"]["average_pm2p5_10min"] = ten_minutes_avg_pm2p5;
+    doc["air_quality_index"]["average_pm2p5_1hour"] = one_hour_avg_pm2p5;
+    doc["air_quality_index"]["average_pm2p5_24hour"] = one_day_avg_pm2p5;
     doc["air_quality_index"]["aqi_current"] = _sensor.airQualityIndex(current_avg_pm2p5);
     doc["air_quality_index"]["aqi_10min"] = _sensor.airQualityIndex(ten_minutes_avg_pm2p5);
     doc["air_quality_index"]["aqi_1hour"] = _sensor.airQualityIndex(one_hour_avg_pm2p5);
