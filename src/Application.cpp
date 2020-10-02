@@ -20,38 +20,6 @@ const int   daylightOffset_sec = 0;
 const char* sensor_name = "YOUR_SENSORNAME";
 
 //
-// webserver handlers
-//
-
-void notFound(AsyncWebServerRequest *request) {
-    request->send(404, "text/plain", "Not found");
-}
-
-String processor(const String& var){
-  if(var == "AQI24HOUR") {
-    return String(Application::getInstance()->sensor().tenMinuteAirQualityIndex(), 1);
-  } else if (var == "SENSORNAME") {
-    return String(sensor_name);
-  } else if (var == "COLORCLASS") {
-    float aqi = Application::getInstance()->sensor().tenMinuteAirQualityIndex();
-    if (aqi <= 50) {
-      return String("aqi-green");
-    } else if (aqi <= 100) {
-      return String("aqi-yellow");
-    } else if (aqi <= 150) {
-      return String("aqi-orange");
-    } else if (aqi <= 200) {
-      return String("aqi-red");
-    } else if (aqi <= 300) {
-      return String("aqi-purple");
-    } else {
-      return String("aqi-maroon");
-    }
-  }
-  return String();
-}
-
-//
 // Application
 //
 
@@ -119,48 +87,80 @@ void Application::printLocalTime(void)
     return;
   }
   Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
-  Serial.print("Day of week: ");
-  Serial.println(&timeinfo, "%A");
-  Serial.print("Month: ");
-  Serial.println(&timeinfo, "%B");
-  Serial.print("Day of Month: ");
-  Serial.println(&timeinfo, "%d");
-  Serial.print("Year: ");
-  Serial.println(&timeinfo, "%Y");
-  Serial.print("Hour: ");
-  Serial.println(&timeinfo, "%H");
-  Serial.print("Hour (12 hour format): ");
-  Serial.println(&timeinfo, "%I");
-  Serial.print("Minute: ");
-  Serial.println(&timeinfo, "%M");
-  Serial.print("Second: ");
-  Serial.println(&timeinfo, "%S");
-
-  Serial.println("Time variables");
-  char timeHour[3];
-  strftime(timeHour,3, "%H", &timeinfo);
-  Serial.println(timeHour);
-  char timeWeekDay[10];
-  strftime(timeWeekDay,10, "%A", &timeinfo);
-  Serial.println(timeWeekDay);
-  Serial.println();
 }
 
 void Application::setupWebserver(void)
 {
-  _server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-      Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-      request->send(SPIFFS, "/index.html", String(), false, processor);
-  });
-
-  _server.on("/diyaqi.css", HTTP_GET, [](AsyncWebServerRequest *request){
-    Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-    request->send(SPIFFS, "/diyaqi.css", "text/css");
-  });
-
-  _server.onNotFound(notFound);
+  _server.on("/", HTTP_GET, std::bind(&Application::handleRootPageRequest, this, std::placeholders::_1));
+  _server.on("/index.html", HTTP_GET, std::bind(&Application::handleRootPageRequest, this, std::placeholders::_1));
+  _server.onNotFound(std::bind(&Application::handleUnassignedPath, this, std::placeholders::_1));
 
   _server.begin();
+}
+
+String Application::getContentType(String filename)
+{
+  if(filename.endsWith(".htm")) return "text/html";
+  else if(filename.endsWith(".html")) return "text/html";
+  else if(filename.endsWith(".css")) return "text/css";
+  else if(filename.endsWith(".js")) return "application/javascript";
+  else if(filename.endsWith(".png")) return "image/png";
+  else if(filename.endsWith(".gif")) return "image/gif";
+  else if(filename.endsWith(".jpg")) return "image/jpeg";
+  else if(filename.endsWith(".ico")) return "image/x-icon";
+  else if(filename.endsWith(".xml")) return "text/xml";
+  else if(filename.endsWith(".pdf")) return "application/x-pdf";
+  else if(filename.endsWith(".zip")) return "application/x-zip";
+  else if(filename.endsWith(".gz")) return "application/x-gzip";
+  return "text/plain";
+}
+
+void Application::handleUnassignedPath(AsyncWebServerRequest *request)
+{
+  String path(request->url());
+  if (path.endsWith("/")) path += "index.html";
+
+  // first check to see if the URL is in the SPIFFS
+  if (SPIFFS.exists(path)) {
+    Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), path.c_str());
+    request->send(SPIFFS, path, getContentType(path));
+    return;
+  }
+
+  // it is truely not found. Send a 404
+  Serial.printf("WEB: %s - %s - UNKNOWN PATH\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
+  request->send(404, "text/plain", "Not found");
+}
+
+void Application::handleRootPageRequest(AsyncWebServerRequest *request)
+{
+  Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
+  request->send(SPIFFS, "/index.html", String(), false, std::bind(&Application::processRootPageHTML, this, std::placeholders::_1));
+}
+
+String Application::processRootPageHTML(const String& var)
+{
+  if(var == "AQI24HOUR") {
+    return String(Application::getInstance()->sensor().tenMinuteAirQualityIndex(), 1);
+  } else if (var == "SENSORNAME") {
+    return String(sensor_name);
+  } else if (var == "COLORCLASS") {
+    float aqi = Application::getInstance()->sensor().tenMinuteAirQualityIndex();
+    if (aqi <= 50) {
+      return String("aqi-green");
+    } else if (aqi <= 100) {
+      return String("aqi-yellow");
+    } else if (aqi <= 150) {
+      return String("aqi-orange");
+    } else if (aqi <= 200) {
+      return String("aqi-red");
+    } else if (aqi <= 300) {
+      return String("aqi-purple");
+    } else {
+      return String("aqi-maroon");
+    }
+  }
+  return String();
 }
 
 void Application::loop(void)
