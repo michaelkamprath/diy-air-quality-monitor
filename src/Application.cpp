@@ -4,20 +4,19 @@
 #include <SPIFFS.h>
 #include "time.h"
 #include "Application.h"
-
-// the telemetry_url is a RESTful service where all the measurements collected will be POSTed 
-// to as a JSON object. You could post the data to a Google Sheet, or use a simple service
-// that collects and saves the JSON objects posts to as a JSON Lines formatted file. 
-const char* telemetry_url = nullptr;
-const char* ssid     = "REPLACE_WITH_YOUR_SSID";
-const char* password = "REPLACE_WITH_YOUR_PASSWORD";
+#include "Configuration.h"
 
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 0;
 const int   daylightOffset_sec = 0;
+ 
+const char* telemetry_url = TELEMETRY_URL;
+const char* ssid     = WIFI_SSID;
+const char* password = WIFI_PASSWORD;
 
 // this is the sensor name that will be in the telemetry JSON
-const char* sensor_name = "YOUR_SENSORNAME";
+const char* sensor_name = SENSOR_NAME;
+
 
 //
 // Application
@@ -34,7 +33,7 @@ Application* Application::getInstance(void)
   return gApp;
 }
 Application::Application()
-  : _sensor(),
+  : _sensor(AIR_QUALITY_SENSOR_UPDATE_SECONDS),
     _server(80),
     _loopCounter(0),
     _appSetup(false)

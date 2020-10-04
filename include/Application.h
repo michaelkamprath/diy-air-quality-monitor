@@ -3,7 +3,7 @@
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include "AirQualitySensor.h"
+#include <AirQualitySensor.h>
 
 class Application {
 private:
