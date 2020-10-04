@@ -2,6 +2,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <SPIFFS.h>
+#include <Wire.h>
 #include "time.h"
 #include "Application.h"
 #include "Configuration.h"
@@ -17,6 +18,7 @@ const char* password = WIFI_PASSWORD;
 // this is the sensor name that will be in the telemetry JSON
 const char* sensor_name = SENSOR_NAME;
 
+#define SEALEVELPRESSURE_HPA (1013.25)
 
 //
 // Application
@@ -34,10 +36,12 @@ Application* Application::getInstance(void)
 }
 Application::Application()
   : _sensor(AIR_QUALITY_SENSOR_UPDATE_SECONDS),
+    _bme680(),
     _server(80),
     _tinyPICO(),
     _loopCounter(0),
-    _appSetup(false)
+    _appSetup(false),
+    _hasBME680(false)
 {
 
 }
@@ -72,9 +76,21 @@ void Application::setup(void)
   printLocalTime();  
   time(&_boot_time);
 
+  if (!_bme680.begin()) {
+    Serial.println(F("NOTE - Could not find BME680 sensor. Will not create additional environment readings."));
+  } else {
+    Serial.println(F("Found BME680 sensor"));
+    _hasBME680 = true;
+    _bme680.setTemperatureOversampling(BME680_OS_8X);
+    _bme680.setHumidityOversampling(BME680_OS_2X);
+    _bme680.setPressureOversampling(BME680_OS_4X);
+    _bme680.setIIRFilterSize(BME680_FILTER_SIZE_3);
+    _bme680.setGasHeater(320, 150); // 320*C for 150 ms
+  }
+
   // start the sensor
   _sensor.begin();
-
+  
   setupWebserver();
 
   _tinyPICO.DotStar_SetPower(true);
@@ -237,6 +253,14 @@ void Application::loop(void)
   Serial.println(F("Fetching current sensor data."));
   _last_update_time = timestamp;
 
+  unsigned long bme680EndTime = 0;
+  if (_hasBME680) {
+    // Tell BME680 to begin measurement.
+    bme680EndTime = _bme680.beginReading();
+    if (bme680EndTime == 0) {
+      Serial.println(F("    ERROR - Failed to begin BME680 reading"));
+    }
+  }
   if (_sensor.updateSensorReading()) {
     float current_avg_pm2p5 = _sensor.averagePM2p5(AIR_QUALITY_SENSOR_UPDATE_SECONDS);
     float ten_minutes_avg_pm2p5 = _sensor.averagePM2p5(60*10);
@@ -267,6 +291,19 @@ void Application::loop(void)
     doc["air_quality_index"]["aqi_10min"] = _sensor.airQualityIndex(ten_minutes_avg_pm2p5);
     doc["air_quality_index"]["aqi_1hour"] = _sensor.airQualityIndex(one_hour_avg_pm2p5);
     doc["air_quality_index"]["aqi_24hour"] = _sensor.airQualityIndex(one_day_avg_pm2p5);
+
+    // check in on BME 680 
+    if (_hasBME680 && (bme680EndTime > 0)) {
+      if (_bme680.endReading()) {
+        doc["environment"]["temperature"] = _bme680.temperature;        // °C
+        doc["environment"]["pressure"] = _bme680.pressure / 100.0;      // hPa
+        doc["environment"]["humidity"] = _bme680.humidity;              // %
+        doc["environment"]["gas_resistance"] = _bme680.gas_resistance;  // ohms
+        doc["environment"]["pressure_altitude"] = _bme680.readAltitude(SEALEVELPRESSURE_HPA);   // meters
+      } else {
+        Serial.println(F("    ERROR could not finish BME68 reaing."));
+      }
+    }
 
     Serial.print(F("    json payload = "));
     serializeJson(doc, Serial);
