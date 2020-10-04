@@ -29,6 +29,9 @@ private:
     uint32_t _loopCounter;
     bool _appSetup;
     bool _hasBME680;
+    float _latestTemperature;
+    float _latestPressure;
+    float _latestHumidity;
 
     void printLocalTime(void);
     void setupWebserver(void);
@@ -39,6 +42,7 @@ private:
     // web handlers
     String getContentType(String filename);
     String processRootPageHTML(const String& var);
+    bool showEnvironmentRootPage(void) const;
     void handleRootPageRequest(AsyncWebServerRequest *request);
     void handleUnassignedPath(AsyncWebServerRequest *request);
 public:
