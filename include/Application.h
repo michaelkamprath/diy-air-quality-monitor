@@ -4,6 +4,16 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <AirQualitySensor.h>
+#include <TinyPICO.h>
+
+typedef enum {
+    AQI_GREEN,
+    AQI_YELLOW,
+    AQI_ORANGE,
+    AQI_RED,
+    AQI_PURPLE,
+    AQI_MAROON
+} AQIStatusColor;
 
 class Application {
 private:
@@ -13,11 +23,15 @@ private:
     time_t _last_update_time;
     AirQualitySensor _sensor;
     AsyncWebServer _server;
+    TinyPICO _tinyPICO;
     uint32_t _loopCounter;
     bool _appSetup;
 
     void printLocalTime(void);
     void setupWebserver(void);
+
+    AQIStatusColor getAQIStatusColor(float aqi_value) const;
+    void setDotStarColorForAQI(float aqi_value);
 
     // web handlers
     String getContentType(String filename);

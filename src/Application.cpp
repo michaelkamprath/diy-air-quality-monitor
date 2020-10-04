@@ -35,6 +35,7 @@ Application* Application::getInstance(void)
 Application::Application()
   : _sensor(AIR_QUALITY_SENSOR_UPDATE_SECONDS),
     _server(80),
+    _tinyPICO(),
     _loopCounter(0),
     _appSetup(false)
 {
@@ -75,6 +76,10 @@ void Application::setup(void)
   _sensor.begin();
 
   setupWebserver();
+
+  _tinyPICO.DotStar_SetPower(true);
+  _tinyPICO.DotStar_Clear();
+  _tinyPICO.DotStar_SetBrightness(STATUS_LED_BRIGHTNESS);
 
   _appSetup = true;
 }
@@ -137,29 +142,81 @@ void Application::handleRootPageRequest(AsyncWebServerRequest *request)
   request->send(SPIFFS, "/index.html", String(), false, std::bind(&Application::processRootPageHTML, this, std::placeholders::_1));
 }
 
+AQIStatusColor Application::getAQIStatusColor(float aqi_value) const
+{
+  float aqi = _sensor.tenMinuteAirQualityIndex();
+  if (aqi <= 50) {
+    return AQI_GREEN;
+  } else if (aqi <= 100) {
+    return AQI_YELLOW;
+  } else if (aqi <= 150) {
+    return AQI_ORANGE;
+  } else if (aqi <= 200) {
+    return AQI_RED;
+  } else if (aqi <= 300) {
+    return AQI_PURPLE;
+  } else {
+    return AQI_MAROON;
+  }
+}
+
 String Application::processRootPageHTML(const String& var)
 {
   if(var == "AQI24HOUR") {
-    return String(Application::getInstance()->sensor().tenMinuteAirQualityIndex(), 1);
+    return String(_sensor.tenMinuteAirQualityIndex(), 1);
   } else if (var == "SENSORNAME") {
     return String(sensor_name);
   } else if (var == "COLORCLASS") {
-    float aqi = Application::getInstance()->sensor().tenMinuteAirQualityIndex();
-    if (aqi <= 50) {
-      return String("aqi-green");
-    } else if (aqi <= 100) {
-      return String("aqi-yellow");
-    } else if (aqi <= 150) {
-      return String("aqi-orange");
-    } else if (aqi <= 200) {
-      return String("aqi-red");
-    } else if (aqi <= 300) {
-      return String("aqi-purple");
-    } else {
-      return String("aqi-maroon");
+    switch (getAQIStatusColor(_sensor.tenMinuteAirQualityIndex())) {
+      case AQI_GREEN:
+        return String("aqi-green");
+        break;
+      case AQI_YELLOW:
+        return String("aqi-yellow");
+        break;
+      case AQI_ORANGE:
+        return String("aqi-orange");
+        break;
+      case AQI_RED:
+        return String("aqi-red");
+        break;
+      case AQI_PURPLE:
+        return String("aqi-purple");
+        break;
+      default:
+      case AQI_MAROON:
+        return String("aqi-maroon");
+        break;
     }
   }
   return String();
+}
+
+void Application::setDotStarColorForAQI(float aqi_value)
+{
+  switch (getAQIStatusColor(aqi_value)) {
+    case AQI_GREEN:
+      _tinyPICO.DotStar_SetPixelColor(0, 0xFF, 0);
+      break;
+    case AQI_YELLOW:
+      _tinyPICO.DotStar_SetPixelColor(0xFF, 0xFF, 0);
+      break;
+    case AQI_ORANGE:
+      _tinyPICO.DotStar_SetPixelColor(0xFF, 0x80, 0);
+      break;
+    case AQI_RED:
+      _tinyPICO.DotStar_SetPixelColor(0xFF, 0, 0);
+      break;
+    case AQI_PURPLE:
+      _tinyPICO.DotStar_SetPixelColor(0x7F, 0, 0xFF);
+      break;
+    case AQI_MAROON:
+      _tinyPICO.DotStar_SetPixelColor(0x80, 0, 0);
+      break;
+    default:
+      _tinyPICO.DotStar_Clear();
+      break;
+  }
 }
 
 void Application::loop(void)
@@ -215,6 +272,9 @@ void Application::loop(void)
     serializeJson(doc, Serial);
     Serial.print(F("\n"));
 
+    // set the DOT star color
+    setDotStarColorForAQI(doc["air_quality_index"]["aqi_10min"]);
+
     if ((WiFi.status() == WL_CONNECTED) && (telemetry_url != nullptr)) {
       HTTPClient http;
       String requestBody;
@@ -233,6 +293,8 @@ void Application::loop(void)
         Serial.print(" and response = \"");
         Serial.print(response);
         Serial.print("\"\n");
+      } else {
+        Serial.printf("    ERROR when posting JSON = %d\n", httpResponseCode);
       }
     } else if (telemetry_url != nullptr) {
       Serial.print(F("    ERROR - WiFi status is "));
@@ -245,6 +307,8 @@ void Application::loop(void)
       } else {
         Serial.println(F("    ERROR - failed to reconnect WiFi."));
       }
+    } else {
+      Serial.println(F("    Did not upload telemetry due to no telemetry URL being defined."));
     }
   }
 }

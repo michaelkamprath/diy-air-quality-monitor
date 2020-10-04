@@ -181,25 +181,8 @@ float AirQualitySensor::averagePM2p5( int32_t window_size_seconds ) const
     // does not account for measurement holes caused by intermitent sensor failures. For the
     // purposes of what this value is used for, which is to determine when the AQI is based on 
     // a 24 hour average, thiscaveat isn't really that important. Just acknowledging it exists.
-#if 1
-    return calculatePartialOrderedAverage(_pm2p5_history, _pm2p5_history_insertion_idx, window_size_seconds/_sensor_refresh_seconds);
-#else
-    size_t curr_idx = _pm2p5_history_insertion_idx;
-    size_t value_count = 0;
-    uint32_t pm2p5_sum = 0;
-    
-    while (((value_count*AIR_QUALITY_SENSOR_UPDATE_SECONDS) < window_size_seconds) && (value_count < _pm2p5_history.size())) {
-        pm2p5_sum += _pm2p5_history.at(curr_idx);
-        value_count++;
-        if (curr_idx == 0) {
-            curr_idx = _pm2p5_history.size() - 1;
-        } else {
-            curr_idx--;
-        }
-    }
 
-    return (float)pm2p5_sum/(float)value_count;
-#endif
+    return calculatePartialOrderedAverage(_pm2p5_history, _pm2p5_history_insertion_idx, window_size_seconds/_sensor_refresh_seconds);
 }
 
 float AirQualitySensor::airQualityIndex( float avgPM2p5 ) const

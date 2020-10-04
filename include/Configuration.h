@@ -25,4 +25,7 @@
 // Defines thge legnth of time in between updates (measured in seconds)
 #define AIR_QUALITY_SENSOR_UPDATE_SECONDS   15
 
+// Sets the brightness level of the TinyPICO's on-board RGB LED. Should be a number between 0 (off)
+// 255 (full brightness). Hex values are fine.
+#define STATUS_LED_BRIGHTNESS   0x80
 #endif // __Configuration__
