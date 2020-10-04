@@ -1,5 +1,5 @@
+#include <Utilities.h>
 #include "AirQualitySensor.h"
-#include "Utilities.h"
 
 //
 // Sensor Type = Panasonic SN-GCJA5
@@ -11,8 +11,9 @@
 #ifdef SERIAL_BUFFER_SIZE
 #endif
 
-AirQualitySensor::AirQualitySensor()
-    :   _pm1p0(0),
+AirQualitySensor::AirQualitySensor(uint32_t sensor_refresh_seconds)
+    :   _sensor_refresh_seconds(sensor_refresh_seconds),
+        _pm1p0(0),
         _pm2p5(0),
         _pm10(0),
         _particleCount0p5um(0),
@@ -22,11 +23,14 @@ AirQualitySensor::AirQualitySensor()
         _particleCount7p5um(0),
         _particleCount10um(0),
         _sensorStatus(0),
-        _vectorStorage((uint16_t*)ps_malloc(AIR_QUALITY_SENSOR_HISTORY_SIZE*sizeof(uint16_t))),
+        _vectorStorage(nullptr),
         _pm2p5_history(),
         _pm2p5_history_insertion_idx(0)
 {
-    _pm2p5_history.setStorage(_vectorStorage, AIR_QUALITY_SENSOR_HISTORY_SIZE, 0);
+    // keep 1 day of history
+    uint32_t sensor_history_size = 24*60*60/_sensor_refresh_seconds;
+    _vectorStorage = (uint16_t*)ps_malloc(sensor_history_size*sizeof(uint16_t));
+    _pm2p5_history.setStorage(_vectorStorage, sensor_history_size, 0);
 
     Serial.printf("Used PSRAM = %d out of total PSRAM = %d\n", ESP.getPsramSize() - ESP.getFreePsram(), ESP.getPsramSize());
 }
@@ -177,7 +181,9 @@ float AirQualitySensor::averagePM2p5( int32_t window_size_seconds ) const
     // does not account for measurement holes caused by intermitent sensor failures. For the
     // purposes of what this value is used for, which is to determine when the AQI is based on 
     // a 24 hour average, thiscaveat isn't really that important. Just acknowledging it exists.
-
+#if 1
+    return calculatePartialOrderedAverage(_pm2p5_history, _pm2p5_history_insertion_idx, window_size_seconds/_sensor_refresh_seconds);
+#else
     size_t curr_idx = _pm2p5_history_insertion_idx;
     size_t value_count = 0;
     uint32_t pm2p5_sum = 0;
@@ -193,6 +199,7 @@ float AirQualitySensor::averagePM2p5( int32_t window_size_seconds ) const
     }
 
     return (float)pm2p5_sum/(float)value_count;
+#endif
 }
 
 float AirQualitySensor::airQualityIndex( float avgPM2p5 ) const

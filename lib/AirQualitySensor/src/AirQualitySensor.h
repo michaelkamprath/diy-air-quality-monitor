@@ -3,11 +3,10 @@
 #include <Arduino.h>
 #include <Vector.h>
 
-#define AIR_QUALITY_SENSOR_UPDATE_SECONDS   15
-#define AIR_QUALITY_SENSOR_HISTORY_SIZE     86400/AIR_QUALITY_SENSOR_UPDATE_SECONDS
-
 class AirQualitySensor {
 private:
+    uint32_t    _sensor_refresh_seconds;
+
     uint32_t    _pm1p0; // PM1.0
     uint32_t    _pm2p5; // PM2.5
     uint32_t    _pm10;  // PM10
@@ -23,7 +22,7 @@ private:
     Vector<uint16_t>    _pm2p5_history;
     size_t              _pm2p5_history_insertion_idx;
 public:
-    AirQualitySensor();
+    AirQualitySensor(uint32_t sensor_refresh_seconds);
     virtual ~AirQualitySensor();
 
     void begin(void);
@@ -54,7 +53,7 @@ public:
    float airQualityIndex( float avg_pm2p5 ) const;
 
    // convenience functions
-   float currentAirQualityIndex(void) const         { return airQualityIndex(averagePM2p5(AIR_QUALITY_SENSOR_UPDATE_SECONDS)); }
+   float currentAirQualityIndex(void) const         { return airQualityIndex(averagePM2p5(_sensor_refresh_seconds)); }
    float tenMinuteAirQualityIndex(void) const       { return airQualityIndex(averagePM2p5(60*10)); }
    float oneHourAirQualityIndex(void) const         { return airQualityIndex(averagePM2p5(60*60)); }
    float oneDayAirQualityIndex(void) const          { return airQualityIndex(averagePM2p5(60*60*24)); }
