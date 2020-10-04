@@ -57,7 +57,7 @@ void AirQualitySensor::begin(void)
 
     // The Panasonic SN-GCJA5 takes 28 seconds to get power up and normalize.
     // we will wait 28 seconds here.
-    Serial.println(F("Waiting 28 seconds for sensor to power up and initialize"));
+    Serial.println(F("Waiting 28 seconds for particulate sensor to power up and initialize"));
     delay(28000);
 }
 

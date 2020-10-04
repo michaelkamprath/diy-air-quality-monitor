@@ -19,6 +19,7 @@ const char* password = WIFI_PASSWORD;
 const char* sensor_name = SENSOR_NAME;
 
 #define SEALEVELPRESSURE_HPA (1013.25)
+#define UNSET_ENVIRONMENT_VALUE -301.0
 
 //
 // Application
@@ -41,7 +42,10 @@ Application::Application()
     _tinyPICO(),
     _loopCounter(0),
     _appSetup(false),
-    _hasBME680(false)
+    _hasBME680(false),
+    _latestTemperature(UNSET_ENVIRONMENT_VALUE),
+    _latestPressure(UNSET_ENVIRONMENT_VALUE),
+    _latestHumidity(UNSET_ENVIRONMENT_VALUE)
 {
 
 }
@@ -140,22 +144,31 @@ void Application::handleUnassignedPath(AsyncWebServerRequest *request)
   String path(request->url());
   if (path.endsWith("/")) path += "index.html";
 
-  // first check to see if the URL is in the SPIFFS
-  if (SPIFFS.exists(path)) {
-    Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), path.c_str());
-    request->send(SPIFFS, path, getContentType(path));
-    return;
+  // first check if path is a file one shouldn't access directly
+  if (path != "/index_bme680.html") {
+    // now check to see if the URL is in the SPIFFS
+    if (SPIFFS.exists(path)) {
+      Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), path.c_str());
+      request->send(SPIFFS, path, getContentType(path));
+      return;
+    }
   }
-
   // it is truely not found. Send a 404
   Serial.printf("WEB: %s - %s - UNKNOWN PATH\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
   request->send(404, "text/plain", "Not found");
 }
 
+bool Application::showEnvironmentRootPage(void) const
+{
+  return (_hasBME680 && (_latestTemperature != UNSET_ENVIRONMENT_VALUE));
+}
+
 void Application::handleRootPageRequest(AsyncWebServerRequest *request)
 {
+  String root_file = showEnvironmentRootPage() ? "/index_bme680.html" : "/index.html";
+
   Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-  request->send(SPIFFS, "/index.html", String(), false, std::bind(&Application::processRootPageHTML, this, std::placeholders::_1));
+  request->send(SPIFFS, root_file, String(), false, std::bind(&Application::processRootPageHTML, this, std::placeholders::_1));
 }
 
 AQIStatusColor Application::getAQIStatusColor(float aqi_value) const
@@ -204,6 +217,13 @@ String Application::processRootPageHTML(const String& var)
         return String("aqi-maroon");
         break;
     }
+  } else if (var == "TEMPERATURE") {
+    float degreesF = _latestTemperature*9.0/5.0 + 32.0;
+    return String(degreesF, 1);
+  } else if (var == "PRESSURE") {
+    return String(_latestPressure, 1);
+  } else if (var == "HUMIDITY") {
+    return String(_latestHumidity, 1);
   }
   return String();
 }
@@ -295,12 +315,18 @@ void Application::loop(void)
     // check in on BME 680 
     if (_hasBME680 && (bme680EndTime > 0)) {
       if (_bme680.endReading()) {
-        doc["environment"]["temperature"] = _bme680.temperature;        // °C
-        doc["environment"]["pressure"] = _bme680.pressure / 100.0;      // hPa
-        doc["environment"]["humidity"] = _bme680.humidity;              // %
+        _latestTemperature = _bme680.temperature;        // °C
+        _latestPressure = _bme680.pressure / 100.0;      // hPa
+        _latestHumidity = _bme680.humidity;              // %
+        doc["environment"]["temperature"] = _latestTemperature;
+        doc["environment"]["pressure"] = _latestPressure;
+        doc["environment"]["humidity"] = _latestHumidity;
         doc["environment"]["gas_resistance"] = _bme680.gas_resistance;  // ohms
       } else {
         Serial.println(F("    ERROR could not finish BME68 reaing."));
+        _latestTemperature = UNSET_ENVIRONMENT_VALUE;
+        _latestPressure = UNSET_ENVIRONMENT_VALUE;
+        _latestHumidity = UNSET_ENVIRONMENT_VALUE;
       }
     }
 
