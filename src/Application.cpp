@@ -90,7 +90,7 @@ void Application::setup(void)
 
   // start the sensor
   _sensor.begin();
-  
+
   setupWebserver();
 
   _tinyPICO.DotStar_SetPower(true);
@@ -299,7 +299,6 @@ void Application::loop(void)
         doc["environment"]["pressure"] = _bme680.pressure / 100.0;      // hPa
         doc["environment"]["humidity"] = _bme680.humidity;              // %
         doc["environment"]["gas_resistance"] = _bme680.gas_resistance;  // ohms
-        doc["environment"]["pressure_altitude"] = _bme680.readAltitude(SEALEVELPRESSURE_HPA);   // meters
       } else {
         Serial.println(F("    ERROR could not finish BME68 reaing."));
       }
