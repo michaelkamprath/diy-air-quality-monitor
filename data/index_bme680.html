@@ -1,24 +1,38 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <title>DIY Air Quality Monitor</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="diyaqi.css">
-</head>
-<body>
-    <div class="title">DIY Air Quality Monitor</div>
-    <div class="%COLORCLASS%">
+
+  <head>
+    <title>DIY Air Quality Monitor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="diyaqi.css">
+  </head>
+
+  <body>
+    <div class="content">
+      <div class="title">DIY Air Quality Monitor</div>
+      <div class="%COLORCLASS%">
         <div class="aqi-value">
             %AQI24HOUR%
         </div>
-    </div>
-    <div class="environment">
-        <p>Temperature = %TEMPERATURE% &#8457;</p>
-        <p>Pressure = %PRESSURE% hPa</p>
-        <p>Humidity = %HUMIDITY% &#37;</p>
-    </div>
-    <div class="sensor-name">
+      </div>
+      <div class="environment">
+        <div class="value-display">
+          <div class="item-title">Temperature</div>
+          <div class="item-value">%TEMPERATURE% <span class="units">&deg;F</span></div>
+        </div>
+        <div class="value-display">
+          <div class="item-title">Pressure</div>
+          <div class="item-value">%PRESSURE% <span class="units">hPa</span></div>
+        </div>
+        <div class="value-display">
+          <div class="item-title">Humidity</div>
+          <div class="item-value">%HUMIDITY% <span class="units">&percnt;</span></div>
+        </div>
+      </div>
+      <div class="sensor-name">
         %SENSORNAME%
+      </div>
     </div>
-</body>
+  </body>
 </html>
+

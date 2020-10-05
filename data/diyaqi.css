@@ -1,71 +1,115 @@
 @import url('https://fonts.googleapis.com/css2?family=Bowlby+One+SC&display=swap');
 
+
+.content {
+  max-width: 717px;
+  margin: auto;
+}
+
 .title {
-    font-family: "Arial Black", Gadget, sans-serif;
-    text-align: center;
-    font-size: 28px;
+  font-family: "Arial Black", Gadget, sans-serif;
+  text-align: center;
+  font-size: 28px;
 }
 
 .aqi-green {
-    background-color: #82E0AA;
-    color: back;
+  background-color: #82E0AA;
+  color: back;
 }
 
 .aqi-yellow {
-    background-color: #FCF3CF;
-    color: black;
+  background-color: #FCF3CF;
+  color: black;
 }
 
 .aqi-orange {
-	background-color: #F8C471;
-	color: black;
+  background-color: #F8C471;
+  color: black;
 }
 
 .aqi-red {
-    background-color: #F5B7B1;
-    -webkit-text-fill-color: #F0F0F0;
-    -webkit-text-stroke-width: 1px;
-    -webkit-text-stroke-color: black;
+  background-color: #F5B7B1;
+  -webkit-text-fill-color: #F0F0F0;
+  -webkit-text-stroke-width: 1px;
+  -webkit-text-stroke-color: black;
 }
 
 .aqi-purple {
-    background-color: #8E44AD;
-    -webkit-text-fill-color: #F0F0F0;
-    -webkit-text-stroke-width: 1px;
-    -webkit-text-stroke-color: black;
+  background-color: #8E44AD;
+  -webkit-text-fill-color: #F0F0F0;
+  -webkit-text-stroke-width: 1px;
+  -webkit-text-stroke-color: black;
 }
 
 .aqi-maroon {
-    background-color: #800000;
-    -webkit-text-fill-color: #F0F0F0;
-    -webkit-text-stroke-width: 1px;
-    -webkit-text-stroke-color: black;
+  background-color: #800000;
+  -webkit-text-fill-color: #F0F0F0;
+  -webkit-text-stroke-width: 1px;
+  -webkit-text-stroke-color: black;
 }
 
 .aqi-value {
-    font-family: 'Bowlby One SC', sans-serif;
-    font-size: 110px;
-    font-weight: 150;
-    text-transform: none;
-    font-style: normal;
-    text-decoration: none;
-    line-height: 1em;
-    letter-spacing: 0px;
-    text-align: center;
-    margin-top: 24px;
-    padding-top: 16px;
-    padding-bottom: 16px;
+  font-family: 'Bowlby One SC', sans-serif;
+  font-size: calc(100px + (160 - 100) * ((max(min(100vw, 717px), 375px) - 375px) / (717 - 375)));
+  font-weight: 150;
+  text-transform: none;
+  font-style: normal;
+  text-decoration: none;
+  line-height: 1em;
+  letter-spacing: 0px;
+  text-align: center;
+  margin-top: 24px;
+  padding-top: 16px;
+  padding-bottom: 16px;
 }
+
 .sensor-name {
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 14px;
-    font-weight: 100;
-    color: rgba(110, 110, 110, 1);
-    text-transform: none;
-    font-style: normal;
-    text-decoration: none;
-    line-height: 1em;
-    letter-spacing: 0px;
-    text-align: center;
-    padding-top: 8px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  font-weight: 100;
+  color: rgba(110, 110, 110, 1);
+  text-transform: none;
+  font-style: normal;
+  text-decoration: none;
+  line-height: 1em;
+  letter-spacing: 0px;
+  text-align: center;
+  padding-top: 8px;
+}
+
+.environment {
+  width: 100%;
+  text-align: center;
+}
+
+.environment .value-display {
+  width: 23%;
+  display: inline-block;
+  vertical-align: top;
+  border: 1px solid LightGray;
+  text-align: center;
+  margin-top: 4%;
+  margin-left: 1%;
+  margin-right: 1%;
+  margin-bottom: 2%;
+  padding: 8px;
+}
+
+.environment .value-display .item-title {
+  font-family: "Arial Black", Gadget, sans-serif;
+  text-align: center;
+  font-size: calc(12px + (16 - 12) * ((max(min(100vw, 717px), 375px) - 375px) / (717 - 375)));
+  color: #B8B8B8;
+}
+
+.environment .value-display .item-value {
+  font-family: 'Bowlby One SC', sans-serif;
+  font-size: calc(12px + (26 - 12) * ((max(min(100vw, 717px), 375px) - 375px) / (717 - 375)));
+  text-align: center;
+}
+
+.environment .value-display .item-value .units {
+  font-family: "Arial Black", Gadget, sans-serif;
+  font-size: calc(10px + (22 - 10) * ((max(min(100vw, 717px), 375px) - 375px) / (717 - 375)));
+  text-align: center;
 }
