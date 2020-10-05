@@ -3,6 +3,7 @@
 
 .content {
   max-width: 717px;
+  min-width: 375px;
   margin: auto;
 }
 

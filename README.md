@@ -18,3 +18,4 @@ The following features are planned. Listied in no particular order.
    * Display the BME 680 sensor data, if attached.
    * Display the web UI URL
 5. Create a web UI to set up and configure the monitor, replacing the `Configuration.h` file. Would depend on ePaper display to display the temporary WiFi AP the user needs to connect to to configure.
+6. Add ability to download history as a CSV from web UI.

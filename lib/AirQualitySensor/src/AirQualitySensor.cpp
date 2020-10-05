@@ -236,3 +236,24 @@ float AirQualitySensor::airQualityIndex( float avgPM2p5 ) const
 
     return lowAQI + (highAQI - lowAQI)*(avgPM2p5 - lowPM2p5)/(highPM2p5 - lowPM2p5);
 }
+
+//
+// Utility Functions
+//
+
+AQIStatusColor AirQualitySensor::getAQIStatusColor(float aqi_value)
+{
+  if (aqi_value <= 50) {
+    return AQI_GREEN;
+  } else if (aqi_value <= 100) {
+    return AQI_YELLOW;
+  } else if (aqi_value <= 150) {
+    return AQI_ORANGE;
+  } else if (aqi_value <= 200) {
+    return AQI_RED;
+  } else if (aqi_value <= 300) {
+    return AQI_PURPLE;
+  } else {
+    return AQI_MAROON;
+  }
+}

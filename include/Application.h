@@ -7,15 +7,6 @@
 #include <TinyPICO.h>
 #include <Adafruit_BME680.h>
 
-typedef enum {
-    AQI_GREEN,
-    AQI_YELLOW,
-    AQI_ORANGE,
-    AQI_RED,
-    AQI_PURPLE,
-    AQI_MAROON
-} AQIStatusColor;
-
 class Application {
 private:
     static Application* gApp;
@@ -35,8 +26,7 @@ private:
 
     void printLocalTime(void);
     void setupWebserver(void);
-
-    AQIStatusColor getAQIStatusColor(float aqi_value) const;
+    
     void setDotStarColorForAQI(float aqi_value);
 
     // web handlers

@@ -171,24 +171,6 @@ void Application::handleRootPageRequest(AsyncWebServerRequest *request)
   request->send(SPIFFS, root_file, String(), false, std::bind(&Application::processRootPageHTML, this, std::placeholders::_1));
 }
 
-AQIStatusColor Application::getAQIStatusColor(float aqi_value) const
-{
-  float aqi = _sensor.tenMinuteAirQualityIndex();
-  if (aqi <= 50) {
-    return AQI_GREEN;
-  } else if (aqi <= 100) {
-    return AQI_YELLOW;
-  } else if (aqi <= 150) {
-    return AQI_ORANGE;
-  } else if (aqi <= 200) {
-    return AQI_RED;
-  } else if (aqi <= 300) {
-    return AQI_PURPLE;
-  } else {
-    return AQI_MAROON;
-  }
-}
-
 String Application::processRootPageHTML(const String& var)
 {
   if(var == "AQI24HOUR") {
@@ -196,7 +178,7 @@ String Application::processRootPageHTML(const String& var)
   } else if (var == "SENSORNAME") {
     return String(sensor_name);
   } else if (var == "COLORCLASS") {
-    switch (getAQIStatusColor(_sensor.tenMinuteAirQualityIndex())) {
+    switch (AirQualitySensor::getAQIStatusColor(_sensor.tenMinuteAirQualityIndex())) {
       case AQI_GREEN:
         return String("aqi-green");
         break;
@@ -230,7 +212,7 @@ String Application::processRootPageHTML(const String& var)
 
 void Application::setDotStarColorForAQI(float aqi_value)
 {
-  switch (getAQIStatusColor(aqi_value)) {
+  switch (AirQualitySensor::getAQIStatusColor(aqi_value)) {
     case AQI_GREEN:
       _tinyPICO.DotStar_SetPixelColor(0, 0xFF, 0);
       break;
