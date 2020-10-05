@@ -3,6 +3,15 @@
 #include <Arduino.h>
 #include <Vector.h>
 
+typedef enum {
+    AQI_GREEN,
+    AQI_YELLOW,
+    AQI_ORANGE,
+    AQI_RED,
+    AQI_PURPLE,
+    AQI_MAROON
+} AQIStatusColor;
+
 class AirQualitySensor {
 private:
     uint32_t    _sensor_refresh_seconds;
@@ -58,6 +67,10 @@ public:
    float oneHourAirQualityIndex(void) const         { return airQualityIndex(averagePM2p5(60*60)); }
    float oneDayAirQualityIndex(void) const          { return airQualityIndex(averagePM2p5(60*60*24)); }
 
+   // 
+   // static utilty functions
+   //
+    static AQIStatusColor getAQIStatusColor(float aqi_value);    
 };
 
 #endif
