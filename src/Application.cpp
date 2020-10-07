@@ -171,14 +171,30 @@ void Application::handleRootPageRequest(AsyncWebServerRequest *request)
   request->send(SPIFFS, root_file, String(), false, std::bind(&Application::processRootPageHTML, this, std::placeholders::_1));
 }
 
+float Application::getAQIForHTMLTagTimeFragment(const String& fragment)
+{
+  if (fragment == "CURRENT") {
+    return _sensor.currentAirQualityIndex();
+  } else if (fragment == "10MIN") {
+    return _sensor.tenMinuteAirQualityIndex();
+  } else if (fragment == "1HOUR") {
+    return _sensor.oneHourAirQualityIndex();
+  } else if (fragment == "24HOUR") {
+    return _sensor.oneDayAirQualityIndex();
+  }
+
+  // should not get here. Return something obviously wrong.
+  return -1;
+}
+
 String Application::processRootPageHTML(const String& var)
 {
-  if(var == "AQI24HOUR") {
-    return String(_sensor.tenMinuteAirQualityIndex(), 1);
-  } else if (var == "SENSORNAME") {
-    return String(sensor_name);
-  } else if (var == "COLORCLASS") {
-    switch (AirQualitySensor::getAQIStatusColor(_sensor.tenMinuteAirQualityIndex())) {
+  if(var.startsWith("AQI-")) {
+    return String(getAQIForHTMLTagTimeFragment(var.substring(4)), 1);
+  } else if (var.startsWith("COLOR-")) {
+    float aqi_value = getAQIForHTMLTagTimeFragment(var.substring(6));
+
+    switch (AirQualitySensor::getAQIStatusColor(aqi_value)) {
       case AQI_GREEN:
         return String("aqi-green");
         break;
@@ -199,6 +215,8 @@ String Application::processRootPageHTML(const String& var)
         return String("aqi-maroon");
         break;
     }
+  } else if (var == "SENSORNAME") {
+    return String(sensor_name);
   } else if (var == "TEMPERATURE") {
     float degreesF = _latestTemperature*9.0/5.0 + 32.0;
     return String(degreesF, 1);

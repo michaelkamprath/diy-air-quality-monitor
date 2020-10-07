@@ -23,6 +23,10 @@ AirQualitySensor::AirQualitySensor(uint32_t sensor_refresh_seconds)
         _particleCount7p5um(0),
         _particleCount10um(0),
         _sensorStatus(0),
+        _avgPM2p5_Current(0),
+        _avgPM2p5_10Min(0),
+        _avgPM2p5_1Hour(0),
+        _avgPM2p5_24Hour(0),
         _vectorStorage(nullptr),
         _pm2p5_history(),
         _pm2p5_history_insertion_idx(0)
@@ -156,6 +160,11 @@ bool AirQualitySensor::updateSensorReading(void)
     Serial.print(F(", PM10 = "));
     Serial.print(_pm10);
     Serial.print(F("\n"));
+
+    _avgPM2p5_Current = averagePM2p5(_sensor_refresh_seconds);
+    _avgPM2p5_10Min = averagePM2p5(10*60);
+    _avgPM2p5_1Hour = averagePM2p5(60*60);
+    _avgPM2p5_24Hour = averagePM2p5(24*60*60);
 
     return true;
 }

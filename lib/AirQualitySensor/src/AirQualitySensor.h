@@ -27,6 +27,11 @@ private:
     uint16_t    _particleCount10um;
     uint8_t     _sensorStatus;
 
+    float   _avgPM2p5_Current;
+    float   _avgPM2p5_10Min;
+    float   _avgPM2p5_1Hour;
+    float   _avgPM2p5_24Hour;
+  
     uint16_t*           _vectorStorage;
     Vector<uint16_t>    _pm2p5_history;
     size_t              _pm2p5_history_insertion_idx;
@@ -62,10 +67,10 @@ public:
    float airQualityIndex( float avg_pm2p5 ) const;
 
    // convenience functions
-   float currentAirQualityIndex(void) const         { return airQualityIndex(averagePM2p5(_sensor_refresh_seconds)); }
-   float tenMinuteAirQualityIndex(void) const       { return airQualityIndex(averagePM2p5(60*10)); }
-   float oneHourAirQualityIndex(void) const         { return airQualityIndex(averagePM2p5(60*60)); }
-   float oneDayAirQualityIndex(void) const          { return airQualityIndex(averagePM2p5(60*60*24)); }
+   float currentAirQualityIndex(void) const         { return airQualityIndex(_avgPM2p5_Current); }
+   float tenMinuteAirQualityIndex(void) const       { return airQualityIndex(_avgPM2p5_10Min); }
+   float oneHourAirQualityIndex(void) const         { return airQualityIndex(_avgPM2p5_1Hour); }
+   float oneDayAirQualityIndex(void) const          { return airQualityIndex(_avgPM2p5_24Hour); }
 
    // 
    // static utilty functions

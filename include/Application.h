@@ -30,6 +30,7 @@ private:
     void setDotStarColorForAQI(float aqi_value);
 
     // web handlers
+    float getAQIForHTMLTagTimeFragment(const String& fragment);
     String getContentType(String filename);
     String processRootPageHTML(const String& var);
     bool showEnvironmentRootPage(void) const;

@@ -23,10 +23,10 @@ To build this project, you will need the folloing components:
 * *OPTIONAL* [BME680 Environment Sensor Board](https://www.digikey.com/products/en?mpart=3660&v=1528) - You can optionally attach a BME680 sensor to this project to additionally get temperature, pressure, and humidity measurements along with the air quality measurement that the SN-GCJA5 provides. Note that you will need some 26 to 30 AWG hook up wire to construct the cables needed to connect the BME680 to to the TinyPICO, but you can use on either end of those cables the dupont connectors that you are ordering SN-GCJA5.
 
 ## TODO
-The following features are planned. Listied in no particular order.
+The following features are planned. Listed in no particular order.
 
 1. Allow different rates for data collection from sensor and data posting to telemetry service. Note that the data collection rate must be greater than or equal to the telemetry posting rate.
-2. Give options for look-back window of average AQI in the web UI
+2. ~~Give options for look-back window of average AQI in the web UI~~
 3. ~~Add support for the BME680 sensor, which would give gas, pressure, temperature & humidity readings.~~
 4. Add support for an ePaper display that does the following:
    * Display the average AQI (configurable look back window)
