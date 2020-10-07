@@ -13,6 +13,49 @@
   font-size: 28px;
 }
 
+/* Style the tab */
+.avg_tab {
+  overflow: hidden;
+  border: 1px solid #ccc;
+  background-color: #f1f1f1;
+  justify-content: center;
+  display: flex;
+}
+
+/* Style the buttons inside the tab */
+.avg_tab button {
+  background-color: inherit;
+  display: inline-block;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-left: 8px;
+  padding-right: 8px;
+  width: 24%;
+  transition: 0.3s;
+  font-size: calc(12px + (18 - 12) * ((max(min(100vw, 717px), 375px) - 375px) / (717 - 375)));
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: normal;
+}
+
+/* Change background color of buttons on hover */
+.avg_tab button:hover {
+  background-color: #ddd;
+  font-weight: bold;
+}
+
+/* Create an active/current tablink class */
+.avg_tab button.active {
+  background-color: #ccc;
+  font-weight: bold;
+}
+
+.aqi-display {
+  text-align: center;
+}
+
 .aqi-green {
   background-color: #82E0AA;
   color: back;
@@ -58,10 +101,9 @@
   text-decoration: none;
   line-height: 1em;
   letter-spacing: 0px;
-  text-align: center;
   margin-top: 24px;
   padding-top: 16px;
-  padding-bottom: 16px;
+  padding-bottom: 12px;
 }
 
 .sensor-name {
