@@ -80,7 +80,7 @@ void Application::setup(void)
   printLocalTime();  
   time(&_boot_time);
 
-  if (!_bme680.begin()) {
+  if (!_bme680.begin(BME680_SENSOR_I2C_ADDRESS)) {
     Serial.println(F("NOTE - Could not find BME680 sensor. Will not create additional environment readings."));
   } else {
     Serial.println(F("Found BME680 sensor"));

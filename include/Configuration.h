@@ -33,4 +33,11 @@
 #define STATUS_LED_BRIGHTNESS   0x80
 #endif
 
+// BME680 I2C Address. The default address for the AdaFruit Libary is 0x77, and this is what the AdaFruit BME680 board is set to.
+// Most "home brew" BME680 boards use the address of 0x76. Change the value here according to how your BME680 sensor is
+// configured. If you are not using a BME680 censor, then this address can be any value.
+#ifndef BME680_SENSOR_I2C_ADDRESS
+#define BME680_SENSOR_I2C_ADDRESS   0x77
+#endif
+
 #endif // __Configuration__
