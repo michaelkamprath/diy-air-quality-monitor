@@ -5,7 +5,7 @@
 #include <Wire.h>
 #include "time.h"
 #include "Application.h"
-#include "Configuration.h"
+
 
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 0;
@@ -39,7 +39,9 @@ Application::Application()
   : _sensor(AIR_QUALITY_SENSOR_UPDATE_SECONDS),
     _bme680(),
     _server(80),
+#if MCU_BOARD_TYPE == MCU_TINYPICO
     _tinyPICO(),
+#endif
     _loopCounter(0),
     _appSetup(false),
     _hasBME680(false),
@@ -62,9 +64,10 @@ void Application::setup(void)
     Serial.println("ERROR: Could not mount SPIFFs");
     return;
   }
+  setupLED();
 
   // start the WiFi
-  Serial.print(F("Sarting Wifi connection to SSID = "));
+  Serial.print(F("Starting Wifi connection to SSID = "));
   Serial.print(ssid);
   Serial.print(F(" "));
   WiFi.begin(ssid, password);
@@ -96,10 +99,6 @@ void Application::setup(void)
   _sensor.begin();
 
   setupWebserver();
-
-  _tinyPICO.DotStar_SetPower(true);
-  _tinyPICO.DotStar_Clear();
-  _tinyPICO.DotStar_SetBrightness(STATUS_LED_BRIGHTNESS);
 
   _appSetup = true;
 }
@@ -228,31 +227,74 @@ String Application::processRootPageHTML(const String& var)
   return String();
 }
 
-void Application::setDotStarColorForAQI(float aqi_value)
+void Application::setupLED(void)
 {
+#if MCU_BOARD_TYPE == MCU_TINYPICO
+  _tinyPICO.DotStar_SetPower(true);
+  _tinyPICO.DotStar_Clear();
+  _tinyPICO.DotStar_SetBrightness(STATUS_LED_BRIGHTNESS);
+#elif MCU_BOARD_TYPE == MCU_EZSBC_IOT
+// Set up the rgb led names
+#define ledR  16
+#define ledG  17
+#define ledB  18
+  // assign RGB led pins to channels
+  ledcAttachPin(ledR,  1); 
+  ledcAttachPin(ledG,  2);
+  ledcAttachPin(ledB,  3);
+  // Initialize channels
+  // channels 0-15, resolution 1-16 bits, freq limits depend on resolution
+  // ledcSetup(uint8_t channel, uint32_t freq, uint8_t resolution_bits);
+  ledcSetup(1, 12000, 8); // 12 kHz PWM, 8-bit resolution
+  ledcSetup(2, 12000, 8);
+  ledcSetup(3, 12000, 8);
+
+  // clear the LED
+  ledcWrite(1, 0); 
+  ledcWrite(2, 0);
+  ledcWrite(3, 0);
+#endif
+}
+void Application::setLEDColorForAQI(float aqi_value)
+{
+  uint8_t red = 0;
+  uint8_t green = 0;
+  uint8_t blue = 0;
+
   switch (AirQualitySensor::getAQIStatusColor(aqi_value)) {
     case AQI_GREEN:
-      _tinyPICO.DotStar_SetPixelColor(0, 0xFF, 0);
+      green = 0xFF;
       break;
     case AQI_YELLOW:
-      _tinyPICO.DotStar_SetPixelColor(0xFF, 0xFF, 0);
+      red = 0xFF;
+      green = 0xFF;
       break;
     case AQI_ORANGE:
-      _tinyPICO.DotStar_SetPixelColor(0xFF, 0x80, 0);
+      red = 0xFF;
+      green = 0x80;
       break;
     case AQI_RED:
-      _tinyPICO.DotStar_SetPixelColor(0xFF, 0, 0);
+      red = 0xFF;
       break;
     case AQI_PURPLE:
-      _tinyPICO.DotStar_SetPixelColor(0x7F, 0, 0xFF);
+      red = 0x7F;
+      blue = 0xFF;
       break;
     case AQI_MAROON:
-      _tinyPICO.DotStar_SetPixelColor(0x80, 0, 0);
+      red = 0x80;
       break;
     default:
-      _tinyPICO.DotStar_Clear();
       break;
   }
+#if MCU_BOARD_TYPE == MCU_TINYPICO
+  _tinyPICO.DotStar_SetPixelColor(red, green, blue);
+#elif MCU_BOARD_TYPE == MCU_EZSBC_IOT
+#define CALC_LED_DUTY_CYCLE(cv) (255 - (uint32_t)cv*STATUS_LED_BRIGHTNESS/255)
+  // write red component to channel 1, etc.
+  ledcWrite(1, CALC_LED_DUTY_CYCLE(red)); 
+  ledcWrite(2, CALC_LED_DUTY_CYCLE(green));
+  ledcWrite(3, CALC_LED_DUTY_CYCLE(blue));
+#endif
 }
 
 void Application::loop(void)
@@ -335,7 +377,7 @@ void Application::loop(void)
     Serial.print(F("\n"));
 
     // set the DOT star color
-    setDotStarColorForAQI(doc["air_quality_index"]["aqi_10min"]);
+    setLEDColorForAQI(doc["air_quality_index"]["aqi_10min"]);
 
     if ((WiFi.status() == WL_CONNECTED) && (telemetry_url != nullptr)) {
       HTTPClient http;
