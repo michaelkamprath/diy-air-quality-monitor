@@ -40,4 +40,12 @@
 #define BME680_SENSOR_I2C_ADDRESS   0x77
 #endif
 
+// Selects which ESP32 microcontroller is being used. Changes pin selections accordingly.
+#define MCU_TINYPICO 1
+#define MCU_EZSBC_IOT 2
+#ifndef MCU_BOARD_TYPE
+#define MCU_BOARD_TYPE MCU_TINYPICO
+#endif
+
+
 #endif // __Configuration__

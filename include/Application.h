@@ -4,8 +4,13 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <AirQualitySensor.h>
-#include <TinyPICO.h>
 #include <Adafruit_BME680.h>
+#include "Configuration.h"
+
+#if MCU_BOARD_TYPE == MCU_TINYPICO
+#include <TinyPICO.h>
+#endif
+
 
 class Application {
 private:
@@ -16,7 +21,9 @@ private:
     AirQualitySensor _sensor;
     Adafruit_BME680 _bme680;
     AsyncWebServer _server;
+#if MCU_BOARD_TYPE == MCU_TINYPICO
     TinyPICO _tinyPICO;
+#endif
     uint32_t _loopCounter;
     bool _appSetup;
     bool _hasBME680;
@@ -27,7 +34,8 @@ private:
     void printLocalTime(void);
     void setupWebserver(void);
     
-    void setDotStarColorForAQI(float aqi_value);
+    void setupLED(void);
+    void setLEDColorForAQI(float aqi_value);
 
     // web handlers
     float getAQIForHTMLTagTimeFragment(const String& fragment);

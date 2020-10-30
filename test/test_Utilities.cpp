@@ -24,6 +24,10 @@ void test_calculatePartialOrderedAverage( void ) {
     float test4_result = calculatePartialOrderedAverage(test_data, (size_t)1, (size_t)5);
     TEST_ASSERT_EQUAL_FLOAT( 7.2,test4_result);
 
+    // Test 5 - Asking for an average over a size larger than the container should yield the average of just the entire container (no double weighting)
+    float test5_result = calculatePartialOrderedAverage(test_data, (size_t)5, (size_t)15);
+    TEST_ASSERT_EQUAL_FLOAT( 5.6,test5_result);   
+
 }
 
 #endif

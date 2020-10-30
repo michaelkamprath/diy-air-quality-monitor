@@ -27,7 +27,9 @@ The following features are planned. Listed in no particular order.
 
 1. Allow different rates for data collection from sensor and data posting to telemetry service. Note that the data collection rate must be greater than or equal to the telemetry posting rate.
 2. ~~Give options for look-back window of average AQI in the web UI~~
+   * Add cookie to remember user's last selected averaging window. 
 3. ~~Add support for the BME680 sensor, which would give gas, pressure, temperature & humidity readings.~~
+   * Make the units used for the display of the temperature (celsius or fahrenheit) configurable
 4. Add support for an ePaper display that does the following:
    * Display the average AQI (configurable look back window)
    * Display a warning based on the color code of the AQI

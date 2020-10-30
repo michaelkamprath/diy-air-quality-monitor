@@ -31,12 +31,38 @@ AirQualitySensor::AirQualitySensor(uint32_t sensor_refresh_seconds)
         _pm2p5_history(),
         _pm2p5_history_insertion_idx(0)
 {
-    // keep 1 day of history
-    uint32_t sensor_history_size = 24*60*60/_sensor_refresh_seconds;
-    _vectorStorage = (uint16_t*)ps_malloc(sensor_history_size*sizeof(uint16_t));
-    _pm2p5_history.setStorage(_vectorStorage, sensor_history_size, 0);
+    uint32_t sensor_history_size = 0;
+    // first attempt to allocate history storage in PSRAM (if attached)
+    if (ESP.getPsramSize() > 0) {
+        Serial.printf("PSRAM is install with a size of %d. Allocating history storage in PSRAM.\n", ESP.getPsramSize());
+        // use half of PSRAM to store measurement history
+        sensor_history_size = ESP.getMaxAllocPsram()/2/sizeof(uint16_t);
+        _vectorStorage = (uint16_t*)ps_malloc(sensor_history_size*sizeof(uint16_t));
+        if (_vectorStorage) {
+            Serial.printf(
+                "Used PSRAM = %d out of total PSRAM = %d, number of sensor history entries = %d for a history period of %f hours\n", 
+                ESP.getPsramSize() - ESP.getFreePsram(), ESP.getPsramSize(), sensor_history_size, sensor_history_size*_sensor_refresh_seconds/3600.0
+            );
+        } else {
+            Serial.print(F("ERROR - failed to allocate history storage in PSRAM"));
 
-    Serial.printf("Used PSRAM = %d out of total PSRAM = %d\n", ESP.getPsramSize() - ESP.getFreePsram(), ESP.getPsramSize());
+        }
+    }
+    if (!_vectorStorage) {
+        // either the board does not have PSRAM or the PSAM malloc failed. Attempt to create history storage in RAM
+        Serial.println(F("Allocating history storage in RAM."));
+        sensor_history_size = ESP.getMaxAllocHeap()/2/sizeof(uint16_t);
+        _vectorStorage = (uint16_t*)malloc(sensor_history_size*sizeof(uint16_t));
+        if (_vectorStorage) {
+            Serial.printf(
+                "Used RAM = %d out of total RAM = %d, number 0f sensor history entries = %d for a history period of %f hours\n", 
+                ESP.getHeapSize() - ESP.getFreeHeap(), ESP.getHeapSize(), sensor_history_size, sensor_history_size*_sensor_refresh_seconds/3600.0
+            );
+        } else {
+            Serial.println(F("ERROR - Could not allocate sensor history vector in device RAM. This will prevent sensor history from being maintained."));
+        }
+    }
+    _pm2p5_history.setStorage(_vectorStorage, sensor_history_size, 0);
 }
 
 AirQualitySensor::~AirQualitySensor()
@@ -186,10 +212,10 @@ uint8_t AirQualitySensor::statusFan(void) const
 
 float AirQualitySensor::averagePM2p5( int32_t window_size_seconds ) const
 {
-    // this averaging makes the grand assumption that all measurements suceed. That is, it 
-    // does not account for measurement holes caused by intermitent sensor failures. For the
+    // this averaging makes the grand assumption that all measurements succeed. That is, it 
+    // does not account for measurement holes caused by intermittent sensor failures. For the
     // purposes of what this value is used for, which is to determine when the AQI is based on 
-    // a 24 hour average, thiscaveat isn't really that important. Just acknowledging it exists.
+    // a 24 hour average, this caveat isn't really that important. Just acknowledging it exists.
 
     return calculatePartialOrderedAverage(_pm2p5_history, _pm2p5_history_insertion_idx, window_size_seconds/_sensor_refresh_seconds);
 }
