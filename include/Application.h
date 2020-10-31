@@ -26,6 +26,7 @@ private:
     TinyPICO _tinyPICO;
 #endif
     uint32_t _loopCounter;
+    uint32_t _rootPageViewCount;
     bool _appSetup;
     bool _hasBME680;
     float _latestTemperature;

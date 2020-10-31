@@ -43,6 +43,7 @@ Application::Application()
     _tinyPICO(),
 #endif
     _loopCounter(0),
+    _rootPageViewCount(0),
     _appSetup(false),
     _hasBME680(false),
     _latestTemperature(UNSET_ENVIRONMENT_VALUE),
@@ -170,6 +171,7 @@ void Application::handleRootPageRequest(AsyncWebServerRequest *request)
 
   Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
   request->send(SPIFFS, root_file, getContentType(root_file), false, std::bind(&Application::processRootPageHTML, this, std::placeholders::_1));
+  _rootPageViewCount++;
 }
 
 void Application::handleStatsPageRequest(AsyncWebServerRequest *request)
@@ -284,6 +286,8 @@ String Application::processStatsPageHTML(const String& var)
     return String(_sensor.statusLaser());
   } else if (var == "FANSTATUS") {
     return String(_sensor.statusFan());
+  } else if (var == "ROOTVIEWCOUNT") {
+    return String(_rootPageViewCount);
   }
 
   return String();
