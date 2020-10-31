@@ -405,8 +405,8 @@ void Application::loop(void)
   float aqi_10min = _sensor.airQualityIndex(ten_minutes_avg_pm2p5);
   setLEDColorForAQI(aqi_10min);
 
-  if (  (telemetry_url != nullptr)
-      &&(timestamp - _last_transmit_time) < AIR_QUALITY_SENSOR_UPDATE_SECONDS*AIR_QUALITY_DATA_TRANSMIT_MULTIPLE) 
+  if (  (telemetry_url == nullptr)
+      ||(timestamp - _last_transmit_time) < AIR_QUALITY_SENSOR_UPDATE_SECONDS*AIR_QUALITY_DATA_TRANSMIT_MULTIPLE) 
   {
     return;
   }
