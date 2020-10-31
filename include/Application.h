@@ -18,6 +18,7 @@ private:
 
     time_t _boot_time;
     time_t _last_update_time;
+    time_t _last_transmit_time;
     AirQualitySensor _sensor;
     Adafruit_BME680 _bme680;
     AsyncWebServer _server;
@@ -41,8 +42,10 @@ private:
     float getAQIForHTMLTagTimeFragment(const String& fragment);
     String getContentType(String filename);
     String processRootPageHTML(const String& var);
+    String processStatsPageHTML(const String& var);
     bool showEnvironmentRootPage(void) const;
     void handleRootPageRequest(AsyncWebServerRequest *request);
+    void handleStatsPageRequest(AsyncWebServerRequest *request);
     void handleUnassignedPath(AsyncWebServerRequest *request);
 public:
     static Application* getInstance(void);

@@ -30,4 +30,10 @@ void test_calculatePartialOrderedAverage( void ) {
 
 }
 
+void test_convertEpochToString( void ) {
+    time_t time1 = 1604112527;
+    String time1str = "Sat 2020-10-31 02:48:47 GMT";
+
+    TEST_ASSERT_TRUE(time1str == convertEpochToString(time1));
+}
 #endif

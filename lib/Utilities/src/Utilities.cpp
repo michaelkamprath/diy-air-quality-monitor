@@ -37,3 +37,14 @@ float calculatePartialOrderedAverage( const Vector<uint16_t>& data, size_t start
 
     return (float)running_sum/(float)value_count;
 }
+
+String convertEpochToString(time_t epoch_time)
+{
+    struct tm  ts;
+    char buf[80];
+
+    ts = *localtime(&epoch_time);
+    strftime(buf, sizeof(buf), "%a %Y-%m-%d %H:%M:%S %Z", &ts);
+
+    return String(buf);
+}
