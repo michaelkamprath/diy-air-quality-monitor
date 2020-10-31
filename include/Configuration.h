@@ -22,12 +22,24 @@
 #define SENSOR_NAME     "YOUR_DEVICE_NAME"
 #endif
 
-// Defines thge legnth of time in between updates (measured in seconds)
+// Defines the legnth of time between measurements are taken from the air quality sensor.
+// Measurements are retained for the purposes of calculating the averages. Be mindful of
+// how much RAM must be used to retain 1 days's worth of measurements, but more measurements
+// yield better averages. Due to sensor limitations, the fastest measurement rate possible is
+// every second. This value must be an integer.
 #ifndef AIR_QUALITY_SENSOR_UPDATE_SECONDS
-#define AIR_QUALITY_SENSOR_UPDATE_SECONDS   15
+#define AIR_QUALITY_SENSOR_UPDATE_SECONDS   2
 #endif
 
-// Sets the brightness level of the TinyPICO's on-board RGB LED. Should be a number between 0 (off)
+// Defines the number of AIR_QUALITY_SENSOR_UPDATE_SECONDS cycle that must occur between
+// each data transmission to the TELEMETRY_URL. Has no net effect if TELEMETRY_URL is
+// a nullptr. When transmitting data, only the measurement from the current cycle is
+// transmitted. Must be an integer.
+#ifndef AIR_QUALITY_DATA_TRANSMIT_MULTIPLE
+#define AIR_QUALITY_DATA_TRANSMIT_MULTIPLE   30
+#endif
+
+// Sets the brightness level of the on-board RGB LED. Should be a integer between 0 (off) and
 // 255 (full brightness). Hex values are fine.
 #ifndef STATUS_LED_BRIGHTNESS
 #define STATUS_LED_BRIGHTNESS   0x80
@@ -40,7 +52,8 @@
 #define BME680_SENSOR_I2C_ADDRESS   0x77
 #endif
 
-// Selects which ESP32 microcontroller is being used. Changes pin selections accordingly.
+// Selects which ESP32 microcontroller is being used. Note that for boards that do not have PSRAM, it is recommended to
+// set the AIR_QUALITY_SENSOR_UPDATE_SECONDS value to at least 5.
 #define MCU_TINYPICO 1
 #define MCU_EZSBC_IOT 2
 #ifndef MCU_BOARD_TYPE

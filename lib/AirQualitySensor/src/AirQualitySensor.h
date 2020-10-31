@@ -40,6 +40,7 @@ public:
     virtual ~AirQualitySensor();
 
     void begin(void);
+    size_t getHistoryCount(void) const        { return _pm2p5_history.size(); }
 
     // returns true if new data was fetched
     bool updateSensorReading(void);
