@@ -41,6 +41,9 @@ To build this project, you will need the folloing components:
 | `IO22` | `SCL` | The I2C clock line |
 | `IO21` | `SDA` | The I2C data line |
 
+## Data Collection
+This code has the option to push all of the granular and detailed data collected from the connected sensors to a data collection service in a JSON format for later analysis. This is done by editing the `TELEMETRY_URL` macro in the `include/Configuration.h` header file. A recommended data collection service is the [Simple JSON Collector Service](https://github.com/michaelkamprath/simple-json-collector-service). 
+
 ## TODO
 The following features are planned. Listed in no particular order.
 
