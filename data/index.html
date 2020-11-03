@@ -11,23 +11,23 @@
     <div class="content">
       <div class="title">DIY Air Quality Monitor</div>
       <div id="current" class="aqi-display">
-        <div class="^COLOR-CURRENT^">
-          <div class="aqi-value">^AQI-CURRENT^</div>
+        <div class="^COLOR-CURRENT^" id="bg-current">
+          <div class="aqi-value" id="value-current">^AQI-CURRENT^</div>
         </div>
       </div>
       <div id="ten_min" class="aqi-display">
-        <div class="^COLOR-10MIN^">
-          <div class="aqi-value">^AQI-10MIN^</div>
+        <div class="^COLOR-10MIN^" id="bg-tenMinutes">
+          <div class="aqi-value" id="value-tenMinutes">^AQI-10MIN^</div>
         </div>
       </div>
       <div id="one_hour" class="aqi-display">
-        <div class="^COLOR-1HOUR^">
-          <div class="aqi-value">^AQI-1HOUR^</div>
+        <div class="^COLOR-1HOUR^" id="bg-hour">
+          <div class="aqi-value" id="value-hour">^AQI-1HOUR^</div>
         </div>
       </div>
       <div id="one_day" class="aqi-display">
-        <div class="^COLOR-24HOUR^">
-          <div class="aqi-value">^AQI-24HOUR^</div>
+        <div class="^COLOR-24HOUR^" id="bg-day">
+          <div class="aqi-value" id="value-day">^AQI-24HOUR^</div>
         </div>
       </div>
       <div class="avg_tab">
@@ -41,24 +41,7 @@
       </div>
     </div>
 
-    <script>
-      function showAQI(evt, avr_window) {
-        var i, tabcontent, tablinks;
-        tabcontent = document.getElementsByClassName("aqi-display");
-        for (i = 0; i < tabcontent.length; i++) {
-          tabcontent[i].style.display = "none";
-        }
-        tablinks = document.getElementsByClassName("aqi_window_option");
-        for (i = 0; i < tablinks.length; i++) {
-          tablinks[i].className = tablinks[i].className.replace(" active", "");
-        }
-        document.getElementById(avr_window).style.display = "block";
-        evt.currentTarget.className += " active";
-      }
-      // Get the element with id="defaultOpen" and click on it
-      document.getElementById("defaultOpen").click();
-    </script>
-
+    <script src="script.js"></script>
   </body>
 </html>
 

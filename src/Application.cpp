@@ -10,7 +10,7 @@
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 0;
 const int   daylightOffset_sec = 0;
- 
+
 const char* telemetry_url = TELEMETRY_URL;
 const char* ssid     = WIFI_SSID;
 const char* password = WIFI_PASSWORD;
@@ -81,7 +81,7 @@ void Application::setup(void)
   Serial.print(F("\n"));
 
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-  printLocalTime();  
+  printLocalTime();
   time(&_boot_time);
 
   if (!_bme680.begin(BME680_SENSOR_I2C_ADDRESS)) {
@@ -119,6 +119,8 @@ void Application::setupWebserver(void)
   _server.on("/index.html", HTTP_GET, std::bind(&Application::handleRootPageRequest, this, std::placeholders::_1));
   _server.on("/stats", HTTP_GET, std::bind(&Application::handleStatsPageRequest, this, std::placeholders::_1));
   _server.on("/stats.html", HTTP_GET, std::bind(&Application::handleStatsPageRequest, this, std::placeholders::_1));
+  _server.on("/script.js", HTTP_GET, std::bind(&Application::handleScriptRequest, this, std::placeholders::_1));
+  _server.on("/json", HTTP_GET, std::bind(&Application::handleJsonRequest, this, std::placeholders::_1));
   _server.onNotFound(std::bind(&Application::handleUnassignedPath, this, std::placeholders::_1));
 
   _server.begin();
@@ -179,6 +181,25 @@ void Application::handleStatsPageRequest(AsyncWebServerRequest *request)
   String stats_file = "/stats.html";
   Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
   request->send(SPIFFS, stats_file, getContentType(stats_file), false, std::bind(&Application::processStatsPageHTML, this, std::placeholders::_1));
+}
+
+void Application::handleScriptRequest(AsyncWebServerRequest *request)
+{
+  String script_file = "/script.js";
+  request->send(SPIFFS, script_file, getContentType(script_file), false, std::bind(&Application::processScriptFile, this, std::placeholders::_1));
+}
+
+void Application::handleJsonRequest(AsyncWebServerRequest *request)
+{
+  DynamicJsonDocument doc(128);
+  String result;
+  Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
+  doc["current"] = _sensor.currentAirQualityIndex();
+  doc["tenMinutes"] = _sensor.tenMinuteAirQualityIndex();
+  doc["hour"] = _sensor.oneHourAirQualityIndex();
+  doc["day"] = _sensor.oneDayAirQualityIndex();
+  serializeJson(doc, result);
+  request->send(200, "application/json", result);
 }
 
 float Application::getAQIForHTMLTagTimeFragment(const String& fragment)
@@ -292,6 +313,14 @@ String Application::processStatsPageHTML(const String& var)
 
   return String();
 }
+
+String Application::processScriptFile(const String &var) {
+  if (var == "SENSOR-UPDATE-SECONDS") {
+    return String(AIR_QUALITY_SENSOR_UPDATE_SECONDS);
+  }
+  return String();
+}
+
 void Application::setupLED(void)
 {
 #if MCU_BOARD_TYPE == MCU_TINYPICO
@@ -304,7 +333,7 @@ void Application::setupLED(void)
 #define ledG  17
 #define ledB  18
   // assign RGB led pins to channels
-  ledcAttachPin(ledR,  1); 
+  ledcAttachPin(ledR,  1);
   ledcAttachPin(ledG,  2);
   ledcAttachPin(ledB,  3);
   // Initialize channels
@@ -315,7 +344,7 @@ void Application::setupLED(void)
   ledcSetup(3, 12000, 8);
 
   // clear the LED
-  ledcWrite(1, 0); 
+  ledcWrite(1, 0);
   ledcWrite(2, 0);
   ledcWrite(3, 0);
 #endif
@@ -356,7 +385,7 @@ void Application::setLEDColorForAQI(float aqi_value)
 #elif MCU_BOARD_TYPE == MCU_EZSBC_IOT
 #define CALC_LED_DUTY_CYCLE(cv) (255 - (uint32_t)cv*STATUS_LED_BRIGHTNESS/255)
   // write red component to channel 1, etc.
-  ledcWrite(1, CALC_LED_DUTY_CYCLE(red)); 
+  ledcWrite(1, CALC_LED_DUTY_CYCLE(red));
   ledcWrite(2, CALC_LED_DUTY_CYCLE(green));
   ledcWrite(3, CALC_LED_DUTY_CYCLE(blue));
 #endif
@@ -392,7 +421,7 @@ void Application::loop(void)
     return;
   }
 
-  // check in on BME 680 
+  // check in on BME 680
   if (_hasBME680 && (bme680EndTime > 0)) {
     if (_bme680.endReading()) {
       _latestTemperature = _bme680.temperature;        // °C
@@ -410,7 +439,7 @@ void Application::loop(void)
   setLEDColorForAQI(aqi_10min);
 
   if (  (telemetry_url == nullptr)
-      ||(timestamp - _last_transmit_time) < AIR_QUALITY_SENSOR_UPDATE_SECONDS*AIR_QUALITY_DATA_TRANSMIT_MULTIPLE) 
+      ||(timestamp - _last_transmit_time) < AIR_QUALITY_SENSOR_UPDATE_SECONDS*AIR_QUALITY_DATA_TRANSMIT_MULTIPLE)
   {
     return;
   }
@@ -458,7 +487,7 @@ void Application::loop(void)
     HTTPClient http;
     String requestBody;
 
-    http.begin(telemetry_url);  
+    http.begin(telemetry_url);
     http.addHeader("Content-Type", "application/json");
 
     serializeJson(doc, requestBody);
@@ -467,8 +496,8 @@ void Application::loop(void)
       String response = http.getString();
       response.trim();
 
-      Serial.print(F("    POSTED data to telemetry service with response code = "));                
-      Serial.print(httpResponseCode);  
+      Serial.print(F("    POSTED data to telemetry service with response code = "));
+      Serial.print(httpResponseCode);
       Serial.print(" and response = \"");
       Serial.print(response);
       Serial.print("\"\n");

@@ -35,7 +35,7 @@ private:
 
     void printLocalTime(void);
     void setupWebserver(void);
-    
+
     void setupLED(void);
     void setLEDColorForAQI(float aqi_value);
 
@@ -44,9 +44,12 @@ private:
     String getContentType(String filename);
     String processRootPageHTML(const String& var);
     String processStatsPageHTML(const String& var);
+    String processScriptFile(const String& var);
     bool showEnvironmentRootPage(void) const;
     void handleRootPageRequest(AsyncWebServerRequest *request);
     void handleStatsPageRequest(AsyncWebServerRequest *request);
+    void handleJsonRequest(AsyncWebServerRequest *request);
+    void handleScriptRequest(AsyncWebServerRequest *request);
     void handleUnassignedPath(AsyncWebServerRequest *request);
 public:
     static Application* getInstance(void);
