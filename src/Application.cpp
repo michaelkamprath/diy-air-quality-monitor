@@ -36,7 +36,10 @@ Application* Application::getInstance(void)
   return gApp;
 }
 Application::Application()
-  : _sensor(AIR_QUALITY_SENSOR_UPDATE_SECONDS),
+  : _boot_time(0),
+    _last_update_time(0),
+    _last_transmit_time(0),
+    _sensor(AIR_QUALITY_SENSOR_UPDATE_SECONDS),
     _bme680(),
     _server(80),
 #if MCU_BOARD_TYPE == MCU_TINYPICO
@@ -444,10 +447,12 @@ void Application::loop(void)
   doc["air_quality_index"]["aqi_10min"] = aqi_10min;
   doc["air_quality_index"]["aqi_1hour"] = _sensor.airQualityIndex(one_hour_avg_pm2p5);
   doc["air_quality_index"]["aqi_24hour"] = _sensor.airQualityIndex(one_day_avg_pm2p5);
-  doc["environment"]["temperature"] = _latestTemperature;
-  doc["environment"]["pressure"] = _latestPressure;
-  doc["environment"]["humidity"] = _latestHumidity;
-  doc["environment"]["gas_resistance"] = _bme680.gas_resistance;  // ohms
+  if (_hasBME680) {
+    doc["environment"]["temperature"] = _latestTemperature;
+    doc["environment"]["pressure"] = _latestPressure;
+    doc["environment"]["humidity"] = _latestHumidity;
+    doc["environment"]["gas_resistance"] = _bme680.gas_resistance;  // ohms
+  }
 
   Serial.print(F("    json payload = "));
   serializeJson(doc, Serial);
