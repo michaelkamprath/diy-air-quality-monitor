@@ -2,6 +2,7 @@
 #define __Application__
 #include <WiFi.h>
 #include <AsyncTCP.h>
+#include <ArduinoJson.h>
 #include <ESPAsyncWebServer.h>
 #include <AirQualitySensor.h>
 #include <Adafruit_BME680.h>
@@ -40,17 +41,12 @@ private:
     void setLEDColorForAQI(float aqi_value);
 
     // web handlers
-    float getAQIForHTMLTagTimeFragment(const String& fragment);
     String getContentType(String filename);
-    String getAQIStatusColorToken(float aqi_value);
-    String processRootPageHTML(const String& var);
     String processStatsPageHTML(const String& var);
-    String processScriptFile(const String& var);
-    bool showEnvironmentRootPage(void) const;
     void handleRootPageRequest(AsyncWebServerRequest *request);
+    void getJsonPayload(DynamicJsonDocument &doc) const;
     void handleStatsPageRequest(AsyncWebServerRequest *request);
     void handleJsonRequest(AsyncWebServerRequest *request);
-    void handleScriptRequest(AsyncWebServerRequest *request);
     void handleUnassignedPath(AsyncWebServerRequest *request);
 public:
     static Application* getInstance(void);
