@@ -151,7 +151,7 @@
   text-align: center;
 }
 
-.environment .value-display .item-value .units {
+.environment .value-display .item-units {
   font-family: "Arial Black", Gadget, sans-serif;
   font-size: calc(10px + (22 - 10) * ((max(min(100vw, 717px), 375px) - 375px) / (717 - 375)));
   text-align: center;
