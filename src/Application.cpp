@@ -148,14 +148,11 @@ void Application::handleUnassignedPath(AsyncWebServerRequest *request)
   String path(request->url());
   if (path.endsWith("/")) path += "index.html";
 
-  // first check if path is a file one shouldn't access directly
-  if (path != "/index_bme680.html") {
-    // now check to see if the URL is in the SPIFFS
-    if (SPIFFS.exists(path)) {
-      Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), path.c_str());
-      request->send(SPIFFS, path, getContentType(path));
-      return;
-    }
+  // check to see if the URL is in the SPIFFS
+  if (SPIFFS.exists(path)) {
+    Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), path.c_str());
+    request->send(SPIFFS, path, getContentType(path));
+    return;
   }
   // it is truely not found. Send a 404
   Serial.printf("WEB: %s - %s - UNKNOWN PATH\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
@@ -169,7 +166,7 @@ bool Application::showEnvironmentRootPage(void) const
 
 void Application::handleRootPageRequest(AsyncWebServerRequest *request)
 {
-  String root_file = showEnvironmentRootPage() ? "/index_bme680.html" : "/index.html";
+  String root_file = "/index.html";
 
   Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
   request->send(SPIFFS, root_file, getContentType(root_file), false, std::bind(&Application::processRootPageHTML, this, std::placeholders::_1));
@@ -186,18 +183,41 @@ void Application::handleStatsPageRequest(AsyncWebServerRequest *request)
 void Application::handleScriptRequest(AsyncWebServerRequest *request)
 {
   String script_file = "/script.js";
+  Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
   request->send(SPIFFS, script_file, getContentType(script_file), false, std::bind(&Application::processScriptFile, this, std::placeholders::_1));
 }
 
 void Application::handleJsonRequest(AsyncWebServerRequest *request)
 {
-  DynamicJsonDocument doc(128);
+  DynamicJsonDocument doc(384);
   String result;
+  unsigned long bme680EndTime = 0;
+
   Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-  doc["current"] = _sensor.currentAirQualityIndex();
-  doc["tenMinutes"] = _sensor.tenMinuteAirQualityIndex();
-  doc["hour"] = _sensor.oneHourAirQualityIndex();
-  doc["day"] = _sensor.oneDayAirQualityIndex();
+  float aqi_current = _sensor.currentAirQualityIndex();
+  float aqi_10min = _sensor.tenMinuteAirQualityIndex();
+  float aqi_1hour = _sensor.oneHourAirQualityIndex();
+  float aqi_24hour = _sensor.oneDayAirQualityIndex();
+  doc["air_quality_index"]["aqi_current"]["value"] = aqi_current;
+  doc["air_quality_index"]["aqi_current"]["color"] = getAQIStatusColorToken(aqi_current);
+  doc["air_quality_index"]["aqi_10min"]["value"] = aqi_10min;
+  doc["air_quality_index"]["aqi_10min"]["color"] = getAQIStatusColorToken(aqi_10min);
+  doc["air_quality_index"]["aqi_1hour"]["value"] = aqi_1hour;
+  doc["air_quality_index"]["aqi_1hour"]["color"] = getAQIStatusColorToken(aqi_1hour);
+  doc["air_quality_index"]["aqi_24hour"]["value"] = aqi_24hour;
+  doc["air_quality_index"]["aqi_24hour"]["color"] = getAQIStatusColorToken(aqi_24hour);
+  if (_hasBME680) {
+    bme680EndTime = _bme680.beginReading();
+    if (bme680EndTime == 0) {
+      Serial.println(F("    ERROR - Failed to begin BME680 reading"));
+    } else if (_bme680.endReading()) {
+      doc["environment"]["temperature"]["value"] = _bme680.temperature;
+      doc["environment"]["pressure"]["value"] = _bme680.pressure / 100.0;
+      doc["environment"]["humidity"]["value"] = _bme680.humidity;
+    } else {
+      Serial.println(F("    ERROR - could not finish BME680 reading."));
+    }
+  }
   serializeJson(doc, result);
   request->send(200, "application/json", result);
 }
@@ -218,34 +238,38 @@ float Application::getAQIForHTMLTagTimeFragment(const String& fragment)
   return -1;
 }
 
+String Application::getAQIStatusColorToken(float aqi_value)
+{
+  switch (AirQualitySensor::getAQIStatusColor(aqi_value)) {
+    case AQI_GREEN:
+      return String("aqi-green");
+      break;
+    case AQI_YELLOW:
+      return String("aqi-yellow");
+      break;
+    case AQI_ORANGE:
+      return String("aqi-orange");
+      break;
+    case AQI_RED:
+      return String("aqi-red");
+      break;
+    case AQI_PURPLE:
+      return String("aqi-purple");
+      break;
+    default:
+    case AQI_MAROON:
+      return String("aqi-maroon");
+      break;
+    }
+}
+
 String Application::processRootPageHTML(const String& var)
 {
   if(var.startsWith("AQI-")) {
     return String(getAQIForHTMLTagTimeFragment(var.substring(4)), 1);
   } else if (var.startsWith("COLOR-")) {
     float aqi_value = getAQIForHTMLTagTimeFragment(var.substring(6));
-
-    switch (AirQualitySensor::getAQIStatusColor(aqi_value)) {
-      case AQI_GREEN:
-        return String("aqi-green");
-        break;
-      case AQI_YELLOW:
-        return String("aqi-yellow");
-        break;
-      case AQI_ORANGE:
-        return String("aqi-orange");
-        break;
-      case AQI_RED:
-        return String("aqi-red");
-        break;
-      case AQI_PURPLE:
-        return String("aqi-purple");
-        break;
-      default:
-      case AQI_MAROON:
-        return String("aqi-maroon");
-        break;
-    }
+    return getAQIStatusColorToken(aqi_value);
   } else if (var == "SENSORNAME") {
     return String(sensor_name);
   } else if (var == "TEMPERATURE") {
@@ -255,6 +279,12 @@ String Application::processRootPageHTML(const String& var)
     return String(_latestPressure, 1);
   } else if (var == "HUMIDITY") {
     return String(_latestHumidity, 1);
+  } else if (var == "HASBME680") {
+    if (_hasBME680) {
+      return String("true");
+    } else {
+      return String("false");
+    }
   }
   return String();
 }

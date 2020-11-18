@@ -42,6 +42,7 @@ private:
     // web handlers
     float getAQIForHTMLTagTimeFragment(const String& fragment);
     String getContentType(String filename);
+    String getAQIStatusColorToken(float aqi_value);
     String processRootPageHTML(const String& var);
     String processStatsPageHTML(const String& var);
     String processScriptFile(const String& var);
