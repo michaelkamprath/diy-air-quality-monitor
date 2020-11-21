@@ -43,6 +43,8 @@ private:
     // web handlers
     String getContentType(String filename);
     String processStatsPageHTML(const String& var);
+
+    String getAQIStatusColor(float aqi_value) const;
     void handleRootPageRequest(AsyncWebServerRequest *request);
     void getJsonPayload(DynamicJsonDocument &doc) const;
     void handleStatsPageRequest(AsyncWebServerRequest *request);

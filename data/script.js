@@ -31,36 +31,28 @@ function showAQI(evt, avr_window) {
   evt.currentTarget.classList.add("active");
 }
 
-function aqiToColorClass(val) {
-  if (val <= 50) {
-    return 'aqi-green';
-  } else if (val <= 100) {
-    return 'aqi-yellow';
-  } else if (val <= 150) {
-    return 'aqi-orange';
-  } else if (val <= 200) {
-    return 'aqi-red';
-  } else if (val <= 300) {
-    return 'aqi-purple';
-  } else {
-    return 'aqi-maroon';
-  }
+function colorToAQIClass(color) {
+  return "aqi-" + color;
 }
 
 async function fetchMetrics() {
   // Response format:
   // {
   //   air_quality_index: {
-  //     aqi_current: float,
-  //     aqi_10min: float,
-  //     aqi_1hour: float,
-  //     aqi_24hour: float,
+  //     aqi_current: {
+  //       value: float,
+  //       color: string,
+  //     },
+  //     aqi_10min: { ... },
+  //     aqi_1hour: { ... },
+  //     aqi_24hour: { ... },
   //   },
   //   has_environment_sensor: true/false
   //   environment?: {
-  //     temperature: float,
-  //     pressure: float,
-  //     humidity: float,
+  //     temperature: { value: float },
+  //     temperature_f: { value: float },
+  //     pressure: { value: float },
+  //     humidity: { value: float },
   //   },
   // }
   return await fetch("/json").then(r => r.json());
@@ -70,16 +62,16 @@ async function updateMetrics() {
   const response = await fetchMetrics();
   const aqiMetrics = response.air_quality_index;
   for (const [tag, valueDiv] of Object.entries(aqiValueDivs)) {
-    valueDiv.textContent = (aqiMetrics[tag] || 0).toFixed(1);
+    valueDiv.textContent = (aqiMetrics[tag].value || 0).toFixed(1);
   }
   for (const [tag, bgDiv] of Object.entries(aqiBgDivs)) {
-    bgDiv.className = aqiToColorClass(aqiMetrics[tag]);
+    bgDiv.className = colorToAQIClass(aqiMetrics[tag].color);
   }
 
   if (response.has_environment_sensor) {
     const envMetrics = response.environment;
     for (const [tag, valueDiv] of Object.entries(envValueDivs)) {
-      valueDiv.textContent = (envMetrics[tag] && envMetrics[tag] || 0).toFixed(1);
+      valueDiv.textContent = (envMetrics[tag].value || 0).toFixed(1);
     }
   } else {
     document.getElementById("bme680").style.display = "none";

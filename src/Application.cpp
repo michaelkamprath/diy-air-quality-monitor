@@ -288,37 +288,68 @@ void Application::getJsonPayload(DynamicJsonDocument &doc) const {
   doc["has_environment_sensor"] = _hasBME680;
   doc["wifi"]["ip_address"] = WiFi.localIP().toString();
   doc["wifi"]["mac_address"] = WiFi.macAddress();
-  doc["mass_density"]["pm1p0"] = _sensor.PM1p0();
-  doc["mass_density"]["pm2p5"] = _sensor.PM2p5();
-  doc["mass_density"]["pm10"] = _sensor.PM10();
-  doc["particle_count"]["0p5um"] = _sensor.particalCount0p5();
-  doc["particle_count"]["1p0um"] = _sensor.particalCount1p0();
-  doc["particle_count"]["2p5um"] = _sensor.particalCount2p5();
-  doc["particle_count"]["5p0um"] = _sensor.particalCount5p0();
-  doc["particle_count"]["7p5um"] = _sensor.particalCount7p5();
-  doc["particle_count"]["10um"] = _sensor.particalCount10();
+  doc["mass_density"]["pm1p0"]["value"] = _sensor.PM1p0();
+  doc["mass_density"]["pm2p5"]["value"] = _sensor.PM2p5();
+  doc["mass_density"]["pm10"]["value"] = _sensor.PM10();
+  doc["particle_count"]["0p5um"]["value"] = _sensor.particalCount0p5();
+  doc["particle_count"]["1p0um"]["value"] = _sensor.particalCount1p0();
+  doc["particle_count"]["2p5um"]["value"] = _sensor.particalCount2p5();
+  doc["particle_count"]["5p0um"]["value"] = _sensor.particalCount5p0();
+  doc["particle_count"]["7p5um"]["value"] = _sensor.particalCount7p5();
+  doc["particle_count"]["10um"]["value"] = _sensor.particalCount10();
   doc["sensor_status"]["partical_detector"] = _sensor.statusParticleDetector();
   doc["sensor_status"]["laser"] = _sensor.statusLaser();
   doc["sensor_status"]["fan"] = _sensor.statusFan();
-  doc["air_quality_index"]["average_pm2p5_current"] = current_avg_pm2p5;
-  doc["air_quality_index"]["average_pm2p5_10min"] = ten_minutes_avg_pm2p5;
-  doc["air_quality_index"]["average_pm2p5_1hour"] = one_hour_avg_pm2p5;
-  doc["air_quality_index"]["average_pm2p5_24hour"] = one_day_avg_pm2p5;
-  doc["air_quality_index"]["aqi_current"] = _sensor.airQualityIndex(current_avg_pm2p5);
-  doc["air_quality_index"]["aqi_10min"] =  _sensor.airQualityIndex(ten_minutes_avg_pm2p5);
-  doc["air_quality_index"]["aqi_1hour"] = _sensor.airQualityIndex(one_hour_avg_pm2p5);
-  doc["air_quality_index"]["aqi_24hour"] = _sensor.airQualityIndex(one_day_avg_pm2p5);
+  doc["air_quality_index"]["average_pm2p5_current"]["value"] = current_avg_pm2p5;
+  doc["air_quality_index"]["average_pm2p5_10min"]["value"] = ten_minutes_avg_pm2p5;
+  doc["air_quality_index"]["average_pm2p5_1hour"]["value"] = one_hour_avg_pm2p5;
+  doc["air_quality_index"]["average_pm2p5_24hour"]["value"] = one_day_avg_pm2p5;
+
+  float aqi = _sensor.airQualityIndex(current_avg_pm2p5);
+  doc["air_quality_index"]["aqi_current"]["value"] = aqi;
+  doc["air_quality_index"]["aqi_current"]["color"] = getAQIStatusColor(aqi);
+  
+  aqi = _sensor.airQualityIndex(ten_minutes_avg_pm2p5);
+  doc["air_quality_index"]["aqi_10min"]["value"] =  aqi;
+  doc["air_quality_index"]["aqi_10min"]["color"] = getAQIStatusColor(aqi);
+
+  aqi = _sensor.airQualityIndex(one_hour_avg_pm2p5);
+  doc["air_quality_index"]["aqi_1hour"]["value"] = aqi;
+  doc["air_quality_index"]["aqi_1hour"]["color"] = getAQIStatusColor(aqi);
+
+  aqi = _sensor.airQualityIndex(one_day_avg_pm2p5);
+  doc["air_quality_index"]["aqi_24hour"]["value"] = aqi;
+  doc["air_quality_index"]["aqi_24hour"]["color"] = getAQIStatusColor(aqi);
   if (_hasBME680) {
-    doc["environment"]["temperature"] = _latestTemperature;
-    doc["environment"]["temperature_f"] = _latestTemperature * 9.0/5.0 + 32.0;
-    doc["environment"]["pressure"] = _latestPressure;
-    doc["environment"]["humidity"] = _latestHumidity;
-    doc["environment"]["gas_resistance"] = _bme680.gas_resistance;  // ohms
+    doc["environment"]["temperature"]["value"] = _latestTemperature;
+    doc["environment"]["temperature_f"]["value"] = _latestTemperature * 9.0/5.0 + 32.0;
+    doc["environment"]["pressure"]["value"] = _latestPressure;
+    doc["environment"]["humidity"]["value"] = _latestHumidity;
+    doc["environment"]["gas_resistance"]["value"] = _bme680.gas_resistance;  // ohms
   }
 
   Serial.print(F("    json payload = "));
   serializeJson(doc, Serial);
   Serial.print(F("\n"));
+}
+
+String Application::getAQIStatusColor(float aqi_value) const
+{
+  switch (AirQualitySensor::getAQIStatusColor(aqi_value)) {
+    case AQI_GREEN:
+      return String("green");
+    case AQI_YELLOW:
+      return String("yellow");
+    case AQI_ORANGE:
+      return String("orange");
+    case AQI_RED:
+      return String("red");
+    case AQI_PURPLE:
+      return String("purple");
+    default:
+    case AQI_MAROON:
+      return String("maroon");
+    }
 }
 
 void Application::setLEDColorForAQI(float aqi_value)
