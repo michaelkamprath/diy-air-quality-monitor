@@ -56,9 +56,14 @@
   text-align: center;
 }
 
+.loading {
+  background-color: grey;
+  color: white;
+}
+
 .aqi-green {
   background-color: #82E0AA;
-  color: back;
+  color: black;
 }
 
 .aqi-yellow {

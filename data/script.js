@@ -1,10 +1,8 @@
-// If BME680 is available, window.HASBME680 === true
-
 // Update interval
 const AIR_QUALITY_SENSOR_UPDATE_SECONDS = 60;
 
 const AQI_INTERVAL_TAGS = ["aqi_current", "aqi_10min", "aqi_1hour", "aqi_24hour"];
-const ENV_INTERVAL_TAGS = ["temperature", "pressure", "humidity"];
+const ENV_INTERVAL_TAGS = ["temperature_f", "pressure", "humidity"];
 
 // DOM node mappings for metric value and color
 const aqiValueDivs = AQI_INTERVAL_TAGS.reduce(
@@ -15,16 +13,10 @@ const aqiBgDivs = AQI_INTERVAL_TAGS.reduce(
   (acc, tag) => ({ ...acc, [tag]: document.getElementById(`bg-${tag}`) }),
   {},
 );
-const envValueDivs = window.HASBME680 ? ENV_INTERVAL_TAGS.reduce(
+const envValueDivs = ENV_INTERVAL_TAGS.reduce(
   (acc, tag) => ({ ...acc, [tag]: document.getElementById(`value-${tag}`) }),
   {},
-) : {};
-
-function checkBME680() {
-  if (!window.HASBME680) {
-    document.getElementById("bme680").remove();
-  }
-}
+);
 
 function showAQI(evt, avr_window) {
   const tabcontents = document.getElementsByClassName("aqi-display");
@@ -39,6 +31,10 @@ function showAQI(evt, avr_window) {
   evt.currentTarget.classList.add("active");
 }
 
+function colorToAQIClass(color) {
+  return "aqi-" + color;
+}
+
 async function fetchMetrics() {
   // Response format:
   // {
@@ -51,8 +47,10 @@ async function fetchMetrics() {
   //     aqi_1hour: { ... },
   //     aqi_24hour: { ... },
   //   },
+  //   has_environment_sensor: true/false
   //   environment?: {
   //     temperature: { value: float },
+  //     temperature_f: { value: float },
   //     pressure: { value: float },
   //     humidity: { value: float },
   //   },
@@ -67,22 +65,29 @@ async function updateMetrics() {
     valueDiv.textContent = (aqiMetrics[tag].value || 0).toFixed(1);
   }
   for (const [tag, bgDiv] of Object.entries(aqiBgDivs)) {
-    bgDiv.className = aqiMetrics[tag].color;
+    bgDiv.className = colorToAQIClass(aqiMetrics[tag].color);
   }
 
-  if (window.HASBME680) {
+  if (response.has_environment_sensor) {
     const envMetrics = response.environment;
     for (const [tag, valueDiv] of Object.entries(envValueDivs)) {
-      valueDiv.textContent = (envMetrics[tag] && envMetrics[tag].value || 0).toFixed(1);
+      valueDiv.textContent = (envMetrics[tag].value || 0).toFixed(1);
     }
+  } else {
+    document.getElementById("bme680").style.display = "none";
   }
+  
+  document.getElementById("sensor_name").textContent = response.sensor_id;
+  document.getElementById("content").style.display = "block";
 }
 
 function main() {
-  // Remove environment metrics (BME680) if not available
-  checkBME680();
   // Get the element with id="defaultOpen" and click on it
   document.getElementById("defaultOpen").click();
+
+  // Load the initial metrics
+  updateMetrics();
+
   // Start polling loop
   setInterval(updateMetrics, (AIR_QUALITY_SENSOR_UPDATE_SECONDS || 60) * 1000);
 }
