@@ -16,7 +16,7 @@
 #define WIFI_PASSWORD    "YOUR_WIFI_PASSWORD"
 #endif
 
-// Defines the name this device should be given. This bame is used to identify this device
+// Defines the name this device should be given. This name is used to identify this device
 // in both the web UI it serves and the JSON payloads posted to TELEMETRY_URL.
 #ifndef SENSOR_NAME
 #define SENSOR_NAME     "YOUR_DEVICE_NAME"

@@ -122,7 +122,6 @@ void Application::setupWebserver(void)
   _server.on("/index.html", HTTP_GET, std::bind(&Application::handleRootPageRequest, this, std::placeholders::_1));
   _server.on("/stats", HTTP_GET, std::bind(&Application::handleStatsPageRequest, this, std::placeholders::_1));
   _server.on("/stats.html", HTTP_GET, std::bind(&Application::handleStatsPageRequest, this, std::placeholders::_1));
-  _server.on("/script.js", HTTP_GET, std::bind(&Application::handleScriptRequest, this, std::placeholders::_1));
   _server.on("/json", HTTP_GET, std::bind(&Application::handleJsonRequest, this, std::placeholders::_1));
   _server.onNotFound(std::bind(&Application::handleUnassignedPath, this, std::placeholders::_1));
 
@@ -162,17 +161,12 @@ void Application::handleUnassignedPath(AsyncWebServerRequest *request)
   request->send(404, "text/plain", "Not found");
 }
 
-bool Application::showEnvironmentRootPage(void) const
-{
-  return (_hasBME680 && (_latestTemperature != UNSET_ENVIRONMENT_VALUE));
-}
-
 void Application::handleRootPageRequest(AsyncWebServerRequest *request)
 {
   String root_file = "/index.html";
 
   Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-  request->send(SPIFFS, root_file, getContentType(root_file), false, std::bind(&Application::processRootPageHTML, this, std::placeholders::_1));
+  request->send(SPIFFS, root_file, getContentType(root_file));
   _rootPageViewCount++;
 }
 
@@ -183,113 +177,16 @@ void Application::handleStatsPageRequest(AsyncWebServerRequest *request)
   request->send(SPIFFS, stats_file, getContentType(stats_file), false, std::bind(&Application::processStatsPageHTML, this, std::placeholders::_1));
 }
 
-void Application::handleScriptRequest(AsyncWebServerRequest *request)
-{
-  String script_file = "/script.js";
-  Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-  request->send(SPIFFS, script_file, getContentType(script_file), false, std::bind(&Application::processScriptFile, this, std::placeholders::_1));
-}
-
 void Application::handleJsonRequest(AsyncWebServerRequest *request)
 {
-  DynamicJsonDocument doc(384);
-  String result;
-  unsigned long bme680EndTime = 0;
-
   Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-  float aqi_current = _sensor.currentAirQualityIndex();
-  float aqi_10min = _sensor.tenMinuteAirQualityIndex();
-  float aqi_1hour = _sensor.oneHourAirQualityIndex();
-  float aqi_24hour = _sensor.oneDayAirQualityIndex();
-  doc["air_quality_index"]["aqi_current"]["value"] = aqi_current;
-  doc["air_quality_index"]["aqi_current"]["color"] = getAQIStatusColorToken(aqi_current);
-  doc["air_quality_index"]["aqi_10min"]["value"] = aqi_10min;
-  doc["air_quality_index"]["aqi_10min"]["color"] = getAQIStatusColorToken(aqi_10min);
-  doc["air_quality_index"]["aqi_1hour"]["value"] = aqi_1hour;
-  doc["air_quality_index"]["aqi_1hour"]["color"] = getAQIStatusColorToken(aqi_1hour);
-  doc["air_quality_index"]["aqi_24hour"]["value"] = aqi_24hour;
-  doc["air_quality_index"]["aqi_24hour"]["color"] = getAQIStatusColorToken(aqi_24hour);
-  if (_hasBME680) {
-    bme680EndTime = _bme680.beginReading();
-    if (bme680EndTime == 0) {
-      Serial.println(F("    ERROR - Failed to begin BME680 reading"));
-    } else if (_bme680.endReading()) {
-      doc["environment"]["temperature"]["value"] = _bme680.temperature;
-      doc["environment"]["pressure"]["value"] = _bme680.pressure / 100.0;
-      doc["environment"]["humidity"]["value"] = _bme680.humidity;
-    } else {
-      Serial.println(F("    ERROR - could not finish BME680 reading."));
-    }
-  }
-  serializeJson(doc, result);
-  request->send(200, "application/json", result);
-}
+  DynamicJsonDocument jsonPayload(1024);
+  getJsonPayload(jsonPayload);
 
-float Application::getAQIForHTMLTagTimeFragment(const String& fragment)
-{
-  if (fragment == "CURRENT") {
-    return _sensor.currentAirQualityIndex();
-  } else if (fragment == "10MIN") {
-    return _sensor.tenMinuteAirQualityIndex();
-  } else if (fragment == "1HOUR") {
-    return _sensor.oneHourAirQualityIndex();
-  } else if (fragment == "24HOUR") {
-    return _sensor.oneDayAirQualityIndex();
-  }
+  String requestBody;
+  serializeJson(jsonPayload, requestBody);
 
-  // should not get here. Return something obviously wrong.
-  return -1;
-}
-
-String Application::getAQIStatusColorToken(float aqi_value)
-{
-  switch (AirQualitySensor::getAQIStatusColor(aqi_value)) {
-    case AQI_GREEN:
-      return String("aqi-green");
-      break;
-    case AQI_YELLOW:
-      return String("aqi-yellow");
-      break;
-    case AQI_ORANGE:
-      return String("aqi-orange");
-      break;
-    case AQI_RED:
-      return String("aqi-red");
-      break;
-    case AQI_PURPLE:
-      return String("aqi-purple");
-      break;
-    default:
-    case AQI_MAROON:
-      return String("aqi-maroon");
-      break;
-    }
-}
-
-String Application::processRootPageHTML(const String& var)
-{
-  if(var.startsWith("AQI-")) {
-    return String(getAQIForHTMLTagTimeFragment(var.substring(4)), 1);
-  } else if (var.startsWith("COLOR-")) {
-    float aqi_value = getAQIForHTMLTagTimeFragment(var.substring(6));
-    return getAQIStatusColorToken(aqi_value);
-  } else if (var == "SENSORNAME") {
-    return String(sensor_name);
-  } else if (var == "TEMPERATURE") {
-    float degreesF = _latestTemperature*9.0/5.0 + 32.0;
-    return String(degreesF, 1);
-  } else if (var == "PRESSURE") {
-    return String(_latestPressure, 1);
-  } else if (var == "HUMIDITY") {
-    return String(_latestHumidity, 1);
-  } else if (var == "HASBME680") {
-    if (_hasBME680) {
-      return String("true");
-    } else {
-      return String("false");
-    }
-  }
-  return String();
+  request->send(200, "application/json", requestBody);
 }
 
 String Application::processStatsPageHTML(const String& var)
@@ -347,13 +244,6 @@ String Application::processStatsPageHTML(const String& var)
   return String();
 }
 
-String Application::processScriptFile(const String &var) {
-  if (var == "SENSOR-UPDATE-SECONDS") {
-    return String(AIR_QUALITY_SENSOR_UPDATE_SECONDS);
-  }
-  return String();
-}
-
 void Application::setupLED(void)
 {
 #if MCU_BOARD_TYPE == MCU_TINYPICO
@@ -382,6 +272,86 @@ void Application::setupLED(void)
   ledcWrite(3, 0);
 #endif
 }
+
+void Application::getJsonPayload(DynamicJsonDocument &doc) const {
+  time_t timestamp;
+  time(&timestamp);
+
+  float current_avg_pm2p5 = _sensor.averagePM2p5(AIR_QUALITY_SENSOR_UPDATE_SECONDS);
+  float ten_minutes_avg_pm2p5 = _sensor.averagePM2p5(60*10);
+  float one_hour_avg_pm2p5 = _sensor.averagePM2p5(60*60);
+  float one_day_avg_pm2p5 = _sensor.averagePM2p5(60*60*24);
+
+  doc["timestamp"] = _last_update_time;
+  doc["sensor_id"] = sensor_name;
+  doc["uptime"] = (timestamp - _boot_time);
+  doc["has_environment_sensor"] = _hasBME680;
+  doc["wifi"]["ip_address"] = WiFi.localIP().toString();
+  doc["wifi"]["mac_address"] = WiFi.macAddress();
+  doc["mass_density"]["pm1p0"]["value"] = _sensor.PM1p0();
+  doc["mass_density"]["pm2p5"]["value"] = _sensor.PM2p5();
+  doc["mass_density"]["pm10"]["value"] = _sensor.PM10();
+  doc["particle_count"]["0p5um"]["value"] = _sensor.particalCount0p5();
+  doc["particle_count"]["1p0um"]["value"] = _sensor.particalCount1p0();
+  doc["particle_count"]["2p5um"]["value"] = _sensor.particalCount2p5();
+  doc["particle_count"]["5p0um"]["value"] = _sensor.particalCount5p0();
+  doc["particle_count"]["7p5um"]["value"] = _sensor.particalCount7p5();
+  doc["particle_count"]["10um"]["value"] = _sensor.particalCount10();
+  doc["sensor_status"]["partical_detector"] = _sensor.statusParticleDetector();
+  doc["sensor_status"]["laser"] = _sensor.statusLaser();
+  doc["sensor_status"]["fan"] = _sensor.statusFan();
+  doc["air_quality_index"]["average_pm2p5_current"]["value"] = current_avg_pm2p5;
+  doc["air_quality_index"]["average_pm2p5_10min"]["value"] = ten_minutes_avg_pm2p5;
+  doc["air_quality_index"]["average_pm2p5_1hour"]["value"] = one_hour_avg_pm2p5;
+  doc["air_quality_index"]["average_pm2p5_24hour"]["value"] = one_day_avg_pm2p5;
+
+  float aqi = _sensor.airQualityIndex(current_avg_pm2p5);
+  doc["air_quality_index"]["aqi_current"]["value"] = aqi;
+  doc["air_quality_index"]["aqi_current"]["color"] = getAQIStatusColor(aqi);
+  
+  aqi = _sensor.airQualityIndex(ten_minutes_avg_pm2p5);
+  doc["air_quality_index"]["aqi_10min"]["value"] =  aqi;
+  doc["air_quality_index"]["aqi_10min"]["color"] = getAQIStatusColor(aqi);
+
+  aqi = _sensor.airQualityIndex(one_hour_avg_pm2p5);
+  doc["air_quality_index"]["aqi_1hour"]["value"] = aqi;
+  doc["air_quality_index"]["aqi_1hour"]["color"] = getAQIStatusColor(aqi);
+
+  aqi = _sensor.airQualityIndex(one_day_avg_pm2p5);
+  doc["air_quality_index"]["aqi_24hour"]["value"] = aqi;
+  doc["air_quality_index"]["aqi_24hour"]["color"] = getAQIStatusColor(aqi);
+  if (_hasBME680) {
+    doc["environment"]["temperature"]["value"] = _latestTemperature;
+    doc["environment"]["temperature_f"]["value"] = _latestTemperature * 9.0/5.0 + 32.0;
+    doc["environment"]["pressure"]["value"] = _latestPressure;
+    doc["environment"]["humidity"]["value"] = _latestHumidity;
+    doc["environment"]["gas_resistance"]["value"] = _bme680.gas_resistance;  // ohms
+  }
+
+  Serial.print(F("    json payload = "));
+  serializeJson(doc, Serial);
+  Serial.print(F("\n"));
+}
+
+String Application::getAQIStatusColor(float aqi_value) const
+{
+  switch (AirQualitySensor::getAQIStatusColor(aqi_value)) {
+    case AQI_GREEN:
+      return String("green");
+    case AQI_YELLOW:
+      return String("yellow");
+    case AQI_ORANGE:
+      return String("orange");
+    case AQI_RED:
+      return String("red");
+    case AQI_PURPLE:
+      return String("purple");
+    default:
+    case AQI_MAROON:
+      return String("maroon");
+    }
+}
+
 void Application::setLEDColorForAQI(float aqi_value)
 {
   uint8_t red = 0;
@@ -461,7 +431,7 @@ void Application::loop(void)
       _latestPressure = _bme680.pressure / 100.0;      // hPa
       _latestHumidity = _bme680.humidity;              // %
     } else {
-      Serial.println(F("    ERROR could not finish BME68 reaing."));
+      Serial.println(F("    ERROR could not finish BME680 reading."));
       _latestTemperature = UNSET_ENVIRONMENT_VALUE;
       _latestPressure = UNSET_ENVIRONMENT_VALUE;
       _latestHumidity = UNSET_ENVIRONMENT_VALUE;
@@ -478,47 +448,11 @@ void Application::loop(void)
   }
 
   _last_transmit_time = timestamp;
-  float current_avg_pm2p5 = _sensor.averagePM2p5(AIR_QUALITY_SENSOR_UPDATE_SECONDS);
-  float one_hour_avg_pm2p5 = _sensor.averagePM2p5(60*60);
-  float one_day_avg_pm2p5 = _sensor.averagePM2p5(60*60*24);
-
-  DynamicJsonDocument doc(1024);
-  doc["timestamp"] = timestamp;
-  doc["sensor_id"] = sensor_name;
-  doc["uptime"] = (timestamp - _boot_time);
-  doc["mass_density"]["pm1p0"] = _sensor.PM1p0();
-  doc["mass_density"]["pm2p5"] = _sensor.PM2p5();
-  doc["mass_density"]["pm10"] = _sensor.PM10();
-  doc["particle_count"]["0p5um"] = _sensor.particalCount0p5();
-  doc["particle_count"]["1p0um"] = _sensor.particalCount1p0();
-  doc["particle_count"]["2p5um"] = _sensor.particalCount2p5();
-  doc["particle_count"]["5p0um"] = _sensor.particalCount5p0();
-  doc["particle_count"]["7p5um"] = _sensor.particalCount7p5();
-  doc["particle_count"]["10um"] = _sensor.particalCount10();
-  doc["sensor_status"]["partical_detector"] = _sensor.statusParticleDetector();
-  doc["sensor_status"]["laser"] = _sensor.statusLaser();
-  doc["sensor_status"]["fan"] = _sensor.statusFan();
-  doc["air_quality_index"]["average_pm2p5_current"] = current_avg_pm2p5;
-  doc["air_quality_index"]["average_pm2p5_10min"] = ten_minutes_avg_pm2p5;
-  doc["air_quality_index"]["average_pm2p5_1hour"] = one_hour_avg_pm2p5;
-  doc["air_quality_index"]["average_pm2p5_24hour"] = one_day_avg_pm2p5;
-  doc["air_quality_index"]["aqi_current"] = _sensor.airQualityIndex(current_avg_pm2p5);
-  doc["air_quality_index"]["aqi_10min"] = aqi_10min;
-  doc["air_quality_index"]["aqi_1hour"] = _sensor.airQualityIndex(one_hour_avg_pm2p5);
-  doc["air_quality_index"]["aqi_24hour"] = _sensor.airQualityIndex(one_day_avg_pm2p5);
-  if (_hasBME680) {
-    doc["environment"]["temperature"] = _latestTemperature;
-    doc["environment"]["pressure"] = _latestPressure;
-    doc["environment"]["humidity"] = _latestHumidity;
-    doc["environment"]["gas_resistance"] = _bme680.gas_resistance;  // ohms
-  }
-
-  Serial.print(F("    json payload = "));
-  serializeJson(doc, Serial);
-  Serial.print(F("\n"));
-
 
   if (WiFi.status() == WL_CONNECTED) {
+    DynamicJsonDocument doc(1024);
+    getJsonPayload(doc);
+
     HTTPClient http;
     String requestBody;
 
