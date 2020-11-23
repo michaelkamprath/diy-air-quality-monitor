@@ -1,0 +1,66 @@
+version: "2"
+services:
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    restart: always
+    extra_hosts:
+     - "influxdb:192.168.0.2"
+    ports:
+      - 3000:3000
+    networks:
+      - monitoring
+    volumes:
+      - grafana-volume:/var/lib/grafana
+      - ./grafana/provisioning/:/etc/grafana/provisioning
+      - ./grafana/dashboards/:/etc/grafana/dashboards
+    depends_on:
+      - influxdb
+
+  influxdb:
+    image: influxdb
+    container_name: influxdb
+    restart: always
+    ports:
+      - 8086:8086
+    networks:
+      - monitoring
+    volumes:
+      - influxdb-volume:/var/lib/influxdb
+    environment:
+      - INFLUXDB_REPORTING_DISABLED=true
+      - INFLUXDB_DB=telegraf
+      - INFLUXDB_HTTP_AUTH_ENABLED=false
+      - INFLUXDB_USER=telegraf
+      - INFLUXDB_USER_PASSWORD=changeme
+      - INFLUXDB_ADMIN_ENABLED=true
+      - INFLUXDB_ADMIN_USER=admin
+      - INFLUXDB_ADMIN_PASSWORD=changeme
+      - INFLUXDB_HTTP_FLUX_ENABLED=true
+
+  telegraf:
+    image: telegraf
+    container_name: telegraf
+    command: telegraf --config-directory /etc/telegraf/telegraf.d
+    restart: always
+    extra_hosts:
+     - "influxdb:192.168.0.2"
+    depends_on:
+      - influxdb
+    environment:
+      HOST_MOUNT_PREFIX: /rootfs
+      HOST_VAR: /rootfs/var
+      HOST_RUN: /rootfs/run
+      HOST_PROC: /rootfs/proc
+      HOST_SYS: /rootfs/sys
+      HOST_ETC: /rootfs/etc
+    volumes:
+     - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+     - ./telegraf/telegraf.d:/etc/telegraf/telegraf.d:ro
+     - /var/run/docker.sock:/var/run/docker.sock:ro
+     - /:/rootfs:ro
+networks:
+  monitoring:
+volumes:
+  grafana-volume:
+  influxdb-volume:
