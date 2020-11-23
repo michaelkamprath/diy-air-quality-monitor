@@ -8,23 +8,23 @@ monitors, and to chart the AQI over time.
 Setup
 -----
 
-1. Edit `docker-compose.yaml` and change the IP address (192.168.0.2) to
-   your server IP address (the machine where the docker environment will run)
+1. Edit `config.env` and adjust the list of URLs to point at your homebrew sensors
 
-2. Edit `telegraf/telegraf.d/inputs.homebrew_aqi.conf` to point at your
-   homebrew sensors (the `/json` URL)
-
-3. Run `docker-compose up -d`
+2. Run `docker-compose up -d`
 
 Note: There is no authentication for querying and posting data to `influxdb`, the
-usernames and passwords are currently ignored.
+usernames and passwords (in the docker-compose and grafana config) are currently
+ignored.
 
 User Interface
 --------------
 
 By default the interface will run on port 3000 of the machine you are running
-docker on, e.g. http://192.168.0.2:3000 - once loaded you should be able to see
+docker on, e.g. http://localhost:3000 - once loaded you should be able to see
 AQI dashboards.
+
+A couple of pre-built dashboards are setup by default, you can use these as
+as starting points to create your own custom dashboard
 
 Logging
 -------

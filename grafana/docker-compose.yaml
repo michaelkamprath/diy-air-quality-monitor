@@ -4,8 +4,6 @@ services:
     image: grafana/grafana
     container_name: grafana
     restart: always
-    extra_hosts:
-     - "influxdb:192.168.0.2"
     ports:
       - 3000:3000
     networks:
@@ -43,10 +41,10 @@ services:
     container_name: telegraf
     command: telegraf --config-directory /etc/telegraf/telegraf.d
     restart: always
-    extra_hosts:
-     - "influxdb:192.168.0.2"
-    depends_on:
-      - influxdb
+    networks:
+      - monitoring
+    env_file:
+      - config.env
     environment:
       HOST_MOUNT_PREFIX: /rootfs
       HOST_VAR: /rootfs/var
