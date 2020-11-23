@@ -180,7 +180,7 @@ void Application::handleStatsPageRequest(AsyncWebServerRequest *request)
 void Application::handleJsonRequest(AsyncWebServerRequest *request)
 {
   Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-  DynamicJsonDocument jsonPayload(1024);
+  DynamicJsonDocument jsonPayload(2048);
   getJsonPayload(jsonPayload);
 
   String requestBody;
@@ -328,6 +328,13 @@ void Application::getJsonPayload(DynamicJsonDocument &doc) const {
     doc["environment"]["gas_resistance"]["value"] = _bme680.gas_resistance;  // ohms
   }
 
+  // The DynamicJsonDocument object doesn't resize itelf, so if you construct it with a too small
+  // memory capacity it won't include all data - specifically the final few items (e.g. gas_resistance)
+  // may not be returned.
+  if (doc.overflowed()) {
+    Serial.println(F("ERROR: JSON document has overflowed its capacity; some data will not be returned"));
+  }
+
   Serial.print(F("    json payload = "));
   serializeJson(doc, Serial);
   Serial.print(F("\n"));
@@ -450,7 +457,7 @@ void Application::loop(void)
   _last_transmit_time = timestamp;
 
   if (WiFi.status() == WL_CONNECTED) {
-    DynamicJsonDocument doc(1024);
+    DynamicJsonDocument doc(2048);
     getJsonPayload(doc);
 
     HTTPClient http;
