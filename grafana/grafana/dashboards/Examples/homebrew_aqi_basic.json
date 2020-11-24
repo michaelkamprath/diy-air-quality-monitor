@@ -1,0 +1,781 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "limit": 100,
+        "name": "Annotations & Alerts",
+        "showIn": 0,
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "",
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 1,
+  "id": 15,
+  "iteration": 1606090271643,
+  "links": [],
+  "panels": [
+    {
+      "datasource": "InfluxDBFlux",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "mappings": [
+            {
+              "from": "0",
+              "id": 0,
+              "text": "Good",
+              "to": "50",
+              "type": 2,
+              "value": ""
+            },
+            {
+              "from": "51",
+              "id": 1,
+              "text": "Moderate",
+              "to": "100",
+              "type": 2,
+              "value": ""
+            },
+            {
+              "from": "101",
+              "id": 2,
+              "text": "Unhealthy if sensitive",
+              "to": "150",
+              "type": 2
+            },
+            {
+              "from": "151",
+              "id": 3,
+              "text": "Unhealthy",
+              "to": "200",
+              "type": 2,
+              "value": ""
+            },
+            {
+              "from": "201",
+              "id": 4,
+              "text": "Very Unhealthy",
+              "to": "300",
+              "type": 2
+            },
+            {
+              "from": "301",
+              "id": 5,
+              "text": "Hazardous",
+              "to": "500",
+              "type": 2,
+              "value": ""
+            }
+          ],
+          "max": 500,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "orange",
+                "value": 100
+              },
+              {
+                "color": "dark-red",
+                "value": 150
+              },
+              {
+                "color": "dark-purple",
+                "value": 200
+              },
+              {
+                "color": "rgb(125, 0, 27)",
+                "value": 300
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 0,
+        "y": 0
+      },
+      "id": 15,
+      "interval": "",
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "7.3.3",
+      "targets": [
+        {
+          "alias": "Outside AQI",
+          "groupBy": [],
+          "measurement": "homebrew_aqi",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "// Interpolate a value in a range to a new range\r\ninterpolate = (lowVal, highVal, lowOut, highOut, value) => lowOut + (highOut-lowOut)*(value-lowVal)/(highVal-lowVal)\r\n\r\n// Calculate the AQI from a pm2.5 count from\r\n// https://www.epa.gov/sites/production/files/2016-04/documents/2012_aqi_factsheet.pdf\r\ncalcAQI = (val) => if not exists val then val\r\n      else if val <= 12.0 then interpolate(lowVal:0.0, highVal:12.0, lowOut:0.0, highOut:50.0, value:val)\r\n      else if val <= 35.4 then interpolate(lowVal:12.0, highVal:35.4, lowOut:50.0, highOut:100.0, value:val)\r\n      else if val <= 55.4 then interpolate(lowVal:35.4, highVal:55.4, lowOut:100.0, highOut:150.0, value:val)\r\n      else if val <= 150.4 then interpolate(lowVal:55.4, highVal:150.4, lowOut:150.0, highOut:200.0, value:val)\r\n      else if val <= 250.4 then interpolate(lowVal:150.4, highVal:250.4, lowOut:200.0, highOut:300.0, value:val)\r\n      else if val <= 350.4 then interpolate(lowVal:250.4, highVal:350.4, lowOut:300.0, highOut:400.0, value:val)\r\n      else interpolate(lowVal:350.4, highVal:500.0, lowOut:400.0, highOut:500.0, value:val)\r\n\r\n// Map row values to AQI\r\nmapToAQI = (tables=<-) =>\r\n  tables\r\n    |> map(fn: (r) => ({ r with _value: calcAQI(val: r._value)}))\r\n\r\n// Query for the PM2.5 count and conert to AQI\r\nfrom(bucket: \"telegraf\")\r\n  |> range(start: v.timeRangeStart, stop:v.timeRangeStop)\r\n  |> filter(fn: (r) => r._measurement == \"homebrew_aqi\" )\r\n  |> filter(fn: (r) => r._field == \"mass_density_pm2p5\")\r\n  |> group()\r\n  |> aggregateWindow(every: ${Average}, fn: mean)\r\n  |> mapToAQI()\r\n  |> rename(columns: {_value: \"AQI\"})\r\n  |> yield()",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "",
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": "InfluxDBFlux",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "decimals": 0,
+          "mappings": [],
+          "max": 300,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "orange",
+                "value": 100
+              },
+              {
+                "color": "dark-red",
+                "value": 150
+              },
+              {
+                "color": "dark-purple",
+                "value": 200
+              },
+              {
+                "color": "rgb(125, 0, 27)",
+                "value": 300
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 3,
+        "x": 0,
+        "y": 3
+      },
+      "id": 11,
+      "interval": "",
+      "options": {
+        "displayMode": "lcd",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true
+      },
+      "pluginVersion": "7.3.3",
+      "targets": [
+        {
+          "groupBy": [],
+          "measurement": "homebrew_aqi",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "// Interpolate a value in a range to a new range\r\ninterpolate = (lowVal, highVal, lowOut, highOut, value) => lowOut + (highOut-lowOut)*(value-lowVal)/(highVal-lowVal)\r\n\r\n// Calculate the AQI from a pm2.5 count from\r\n// https://www.epa.gov/sites/production/files/2016-04/documents/2012_aqi_factsheet.pdf\r\ncalcAQI = (val) => if not exists val then val\r\n      else if val <= 12.0 then interpolate(lowVal:0.0, highVal:12.0, lowOut:0.0, highOut:50.0, value:val)\r\n      else if val <= 35.4 then interpolate(lowVal:12.0, highVal:35.4, lowOut:50.0, highOut:100.0, value:val)\r\n      else if val <= 55.4 then interpolate(lowVal:35.4, highVal:55.4, lowOut:100.0, highOut:150.0, value:val)\r\n      else if val <= 150.4 then interpolate(lowVal:55.4, highVal:150.4, lowOut:150.0, highOut:200.0, value:val)\r\n      else if val <= 250.4 then interpolate(lowVal:150.4, highVal:250.4, lowOut:200.0, highOut:300.0, value:val)\r\n      else if val <= 350.4 then interpolate(lowVal:250.4, highVal:350.4, lowOut:300.0, highOut:400.0, value:val)\r\n      else interpolate(lowVal:350.4, highVal:500.0, lowOut:400.0, highOut:500.0, value:val)\r\n\r\n// Map row values to AQI\r\nmapToAQI = (tables=<-) =>\r\n  tables\r\n    |> map(fn: (r) => ({ r with _value: calcAQI(val: r._value)}))\r\n\r\n// Query for the PM2.5 count and conert to AQI\r\nfrom(bucket: \"telegraf\")\r\n  |> range(start: v.timeRangeStart, stop:v.timeRangeStop)\r\n  |> filter(fn: (r) => r._measurement == \"homebrew_aqi\" )\r\n  |> filter(fn: (r) => r._field == \"mass_density_pm2p5\")\r\n  |> group()\r\n  |> aggregateWindow(every: ${Average}, fn: mean)\r\n  |> mapToAQI()\r\n  |> rename(columns: {_value: \"AQI\"})\r\n  |> yield()",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "",
+      "transparent": true,
+      "type": "bargauge"
+    },
+    {
+      "collapsed": false,
+      "datasource": "InfluxDB",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 4
+      },
+      "id": 8,
+      "panels": [],
+      "title": "Air Quality",
+      "type": "row"
+    },
+    {
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "InfluxDBFlux",
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "fill": 3,
+      "fillGradient": 2,
+      "gridPos": {
+        "h": 9,
+        "w": 20,
+        "x": 0,
+        "y": 5
+      },
+      "hiddenSeries": false,
+      "id": 4,
+      "interval": "",
+      "legend": {
+        "alignAsTable": false,
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "maxDataPoints": 200,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.3",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [
+        {
+          "alias": "AQI Outside",
+          "color": "rgb(142, 111, 244)"
+        },
+        {
+          "alias": "AQI Inside",
+          "color": "rgb(62, 143, 254)"
+        }
+      ],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "alias": "AQI Outside",
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "0"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "measurement": "homebrew_aqi",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "// Interpolate a value in a range to a new range\r\ninterpolate = (lowVal, highVal, lowOut, highOut, value) => lowOut + (highOut-lowOut)*(value-lowVal)/(highVal-lowVal)\r\n\r\n// Calculate the AQI from a pm2.5 count from\r\n// https://www.epa.gov/sites/production/files/2016-04/documents/2012_aqi_factsheet.pdf\r\ncalcAQI = (val) => if not exists val then val\r\n      else if val <= 12.0 then interpolate(lowVal:0.0, highVal:12.0, lowOut:0.0, highOut:50.0, value:val)\r\n      else if val <= 35.4 then interpolate(lowVal:12.0, highVal:35.4, lowOut:50.0, highOut:100.0, value:val)\r\n      else if val <= 55.4 then interpolate(lowVal:35.4, highVal:55.4, lowOut:100.0, highOut:150.0, value:val)\r\n      else if val <= 150.4 then interpolate(lowVal:55.4, highVal:150.4, lowOut:150.0, highOut:200.0, value:val)\r\n      else if val <= 250.4 then interpolate(lowVal:150.4, highVal:250.4, lowOut:200.0, highOut:300.0, value:val)\r\n      else if val <= 350.4 then interpolate(lowVal:250.4, highVal:350.4, lowOut:300.0, highOut:400.0, value:val)\r\n      else interpolate(lowVal:350.4, highVal:500.0, lowOut:400.0, highOut:500.0, value:val)\r\n\r\n// Map row values to AQI\r\nmapToAQI = (tables=<-) =>\r\n  tables\r\n    |> map(fn: (r) => ({ r with _value: calcAQI(val: r._value)}))\r\n\r\n// Query for the PM2.5 count and conert to AQI\r\nfrom(bucket: \"telegraf\")\r\n  |> range(start: v.timeRangeStart, stop:v.timeRangeStop)\r\n  |> filter(fn: (r) => r._measurement == \"homebrew_aqi\" )\r\n  |> filter(fn: (r) => r._field == \"mass_density_pm2p5\")\r\n  |> group(columns: [\"sensor_id\",\"SensorId\"], mode: \"by\")\r\n  |> aggregateWindow(every: ${Average}, fn: mean)\r\n  |> mapToAQI()\r\n  |> yield()",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series"
+        }
+      ],
+      "thresholds": [
+        {
+          "colorMode": "custom",
+          "fill": true,
+          "fillColor": "rgba(104, 225, 67, 0.25)",
+          "line": false,
+          "lineColor": "rgba(31, 96, 196, 0.6)",
+          "op": "gt",
+          "value": 0,
+          "yaxis": "left"
+        },
+        {
+          "colorMode": "custom",
+          "fill": true,
+          "fillColor": "rgba(255, 255, 85, 0.25)",
+          "line": false,
+          "lineColor": "rgba(31, 96, 196, 0.6)",
+          "op": "gt",
+          "value": 50,
+          "yaxis": "left"
+        },
+        {
+          "colorMode": "custom",
+          "fill": true,
+          "fillColor": "rgba(239, 133, 51, 0.25)",
+          "line": false,
+          "lineColor": "rgba(31, 96, 196, 0.6)",
+          "op": "gt",
+          "value": 100,
+          "yaxis": "left"
+        },
+        {
+          "colorMode": "custom",
+          "fill": true,
+          "fillColor": "rgba(234, 51, 36, 0.25)",
+          "line": false,
+          "lineColor": "rgba(31, 96, 196, 0.6)",
+          "op": "gt",
+          "value": 150,
+          "yaxis": "left"
+        },
+        {
+          "colorMode": "custom",
+          "fill": true,
+          "fillColor": "rgba(140, 26, 75, 0.25)",
+          "line": false,
+          "lineColor": "rgba(31, 96, 196, 0.6)",
+          "op": "gt",
+          "value": 200,
+          "yaxis": "left"
+        },
+        {
+          "colorMode": "custom",
+          "fill": true,
+          "fillColor": "rgba(115, 20, 37, 0.25)",
+          "line": false,
+          "lineColor": "rgba(31, 96, 196, 0.6)",
+          "op": "gt",
+          "value": 300,
+          "yaxis": "left"
+        }
+      ],
+      "timeFrom": null,
+      "timeRegions": [
+        {
+          "colorMode": "background6",
+          "fill": true,
+          "fillColor": "rgba(234, 112, 112, 0.12)",
+          "line": false,
+          "lineColor": "rgba(237, 46, 24, 0.60)",
+          "op": "time"
+        }
+      ],
+      "timeShift": null,
+      "title": "",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "decimals": null,
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": "0",
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "datasource": "InfluxDBFlux",
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "orange",
+                "value": 100
+              },
+              {
+                "color": "dark-red",
+                "value": 150
+              },
+              {
+                "color": "dark-purple",
+                "value": 200
+              },
+              {
+                "color": "rgb(125, 0, 27)",
+                "value": 300
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 20,
+        "y": 5
+      },
+      "id": 14,
+      "links": [],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "max"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "7.3.3",
+      "targets": [
+        {
+          "alias": "Outside Avg",
+          "groupBy": [],
+          "measurement": "homebrew_aqi",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "// Interpolate a value in a range to a new range\r\ninterpolate = (lowVal, highVal, lowOut, highOut, value) => lowOut + (highOut-lowOut)*(value-lowVal)/(highVal-lowVal)\r\n\r\n// Calculate the AQI from a pm2.5 count from\r\n// https://www.epa.gov/sites/production/files/2016-04/documents/2012_aqi_factsheet.pdf\r\ncalcAQI = (val) => if not exists val then val\r\n      else if val <= 12.0 then interpolate(lowVal:0.0, highVal:12.0, lowOut:0.0, highOut:50.0, value:val)\r\n      else if val <= 35.4 then interpolate(lowVal:12.0, highVal:35.4, lowOut:50.0, highOut:100.0, value:val)\r\n      else if val <= 55.4 then interpolate(lowVal:35.4, highVal:55.4, lowOut:100.0, highOut:150.0, value:val)\r\n      else if val <= 150.4 then interpolate(lowVal:55.4, highVal:150.4, lowOut:150.0, highOut:200.0, value:val)\r\n      else if val <= 250.4 then interpolate(lowVal:150.4, highVal:250.4, lowOut:200.0, highOut:300.0, value:val)\r\n      else if val <= 350.4 then interpolate(lowVal:250.4, highVal:350.4, lowOut:300.0, highOut:400.0, value:val)\r\n      else interpolate(lowVal:350.4, highVal:500.0, lowOut:400.0, highOut:500.0, value:val)\r\n\r\n// Map row values to AQI\r\nmapToAQI = (tables=<-) =>\r\n  tables\r\n    |> map(fn: (r) => ({ r with _value: calcAQI(val: r._value)}))\r\n\r\n// Query for the PM2.5 count and conert to AQI\r\nfrom(bucket: \"telegraf\")\r\n  |> range(start: v.timeRangeStart, stop:v.timeRangeStop)\r\n  |> filter(fn: (r) => r._measurement == \"homebrew_aqi\" )\r\n  |> filter(fn: (r) => r._field == \"mass_density_pm2p5\")\r\n  |> group()\r\n  |> mean() \r\n  |> mapToAQI()\r\n  |> rename(columns: {_value: \"Avg AQI\"})\r\n  |> yield()",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "",
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": "InfluxDBFlux",
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "orange",
+                "value": 100
+              },
+              {
+                "color": "dark-red",
+                "value": 150
+              },
+              {
+                "color": "dark-purple",
+                "value": 200
+              },
+              {
+                "color": "rgb(125, 0, 27)",
+                "value": 300
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 20,
+        "y": 8
+      },
+      "id": 23,
+      "links": [],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "min"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "7.3.3",
+      "targets": [
+        {
+          "alias": "Min",
+          "groupBy": [],
+          "measurement": "homebrew_aqi",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "// Interpolate a value in a range to a new range\r\ninterpolate = (lowVal, highVal, lowOut, highOut, value) => lowOut + (highOut-lowOut)*(value-lowVal)/(highVal-lowVal)\r\n\r\n// Calculate the AQI from a pm2.5 count from\r\n// https://www.epa.gov/sites/production/files/2016-04/documents/2012_aqi_factsheet.pdf\r\ncalcAQI = (val) => if not exists val then val\r\n      else if val <= 12.0 then interpolate(lowVal:0.0, highVal:12.0, lowOut:0.0, highOut:50.0, value:val)\r\n      else if val <= 35.4 then interpolate(lowVal:12.0, highVal:35.4, lowOut:50.0, highOut:100.0, value:val)\r\n      else if val <= 55.4 then interpolate(lowVal:35.4, highVal:55.4, lowOut:100.0, highOut:150.0, value:val)\r\n      else if val <= 150.4 then interpolate(lowVal:55.4, highVal:150.4, lowOut:150.0, highOut:200.0, value:val)\r\n      else if val <= 250.4 then interpolate(lowVal:150.4, highVal:250.4, lowOut:200.0, highOut:300.0, value:val)\r\n      else if val <= 350.4 then interpolate(lowVal:250.4, highVal:350.4, lowOut:300.0, highOut:400.0, value:val)\r\n      else interpolate(lowVal:350.4, highVal:500.0, lowOut:400.0, highOut:500.0, value:val)\r\n\r\n// Map row values to AQI\r\nmapToAQI = (tables=<-) =>\r\n  tables\r\n    |> map(fn: (r) => ({ r with _value: calcAQI(val: r._value)}))\r\n\r\n// Query for the PM2.5 count and conert to AQI\r\nfrom(bucket: \"telegraf\")\r\n  |> range(start: v.timeRangeStart, stop:v.timeRangeStop)\r\n  |> filter(fn: (r) => r._measurement == \"homebrew_aqi\" )\r\n  |> filter(fn: (r) => r._field == \"mass_density_pm2p5\")\r\n  |> group()\r\n  |> min() \r\n  |> mapToAQI()\r\n  |> rename(columns: {_value: \"Min\"})\r\n  |> yield()",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "",
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": "InfluxDBFlux",
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "orange",
+                "value": 100
+              },
+              {
+                "color": "dark-red",
+                "value": 150
+              },
+              {
+                "color": "dark-purple",
+                "value": 200
+              },
+              {
+                "color": "rgb(125, 0, 27)",
+                "value": 300
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 20,
+        "y": 11
+      },
+      "id": 22,
+      "links": [],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "max"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "7.3.3",
+      "targets": [
+        {
+          "alias": "Max",
+          "groupBy": [],
+          "measurement": "homebrew_aqi",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "// Interpolate a value in a range to a new range\r\ninterpolate = (lowVal, highVal, lowOut, highOut, value) => lowOut + (highOut-lowOut)*(value-lowVal)/(highVal-lowVal)\r\n\r\n// Calculate the AQI from a pm2.5 count from\r\n// https://www.epa.gov/sites/production/files/2016-04/documents/2012_aqi_factsheet.pdf\r\ncalcAQI = (val) => if not exists val then val\r\n      else if val <= 12.0 then interpolate(lowVal:0.0, highVal:12.0, lowOut:0.0, highOut:50.0, value:val)\r\n      else if val <= 35.4 then interpolate(lowVal:12.0, highVal:35.4, lowOut:50.0, highOut:100.0, value:val)\r\n      else if val <= 55.4 then interpolate(lowVal:35.4, highVal:55.4, lowOut:100.0, highOut:150.0, value:val)\r\n      else if val <= 150.4 then interpolate(lowVal:55.4, highVal:150.4, lowOut:150.0, highOut:200.0, value:val)\r\n      else if val <= 250.4 then interpolate(lowVal:150.4, highVal:250.4, lowOut:200.0, highOut:300.0, value:val)\r\n      else if val <= 350.4 then interpolate(lowVal:250.4, highVal:350.4, lowOut:300.0, highOut:400.0, value:val)\r\n      else interpolate(lowVal:350.4, highVal:500.0, lowOut:400.0, highOut:500.0, value:val)\r\n\r\n// Map row values to AQI\r\nmapToAQI = (tables=<-) =>\r\n  tables\r\n    |> map(fn: (r) => ({ r with _value: calcAQI(val: r._value)}))\r\n\r\n// Query for the PM2.5 count and conert to AQI\r\nfrom(bucket: \"telegraf\")\r\n  |> range(start: v.timeRangeStart, stop:v.timeRangeStop)\r\n  |> filter(fn: (r) => r._measurement == \"homebrew_aqi\" )\r\n  |> filter(fn: (r) => r._field == \"mass_density_pm2p5\")\r\n  |> group()\r\n  |> aggregateWindow(every: ${Average}, fn: mean)\r\n  |> max() \r\n  |> mapToAQI()\r\n  |> rename(columns: {_value: \"Max\"})\r\n  |> yield()",
+          "rawQuery": false,
+          "refId": "A",
+          "resultFormat": "time_series"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "",
+      "transparent": true,
+      "type": "stat"
+    }
+  ],
+  "refresh": true,
+  "schemaVersion": 26,
+  "style": "dark",
+  "tags": [
+    "InfluxDB",
+    "Telegraf",
+    "homebrew_aqi"
+  ],
+  "templating": {
+    "list": [
+      {
+        "auto": false,
+        "auto_count": 30,
+        "auto_min": "10s",
+        "current": {
+          "selected": false,
+          "text": "10m",
+          "value": "10m"
+        },
+        "error": null,
+        "hide": 0,
+        "label": null,
+        "name": "Average",
+        "options": [
+          {
+            "selected": false,
+            "text": "1m",
+            "value": "1m"
+          },
+          {
+            "selected": false,
+            "text": "5m",
+            "value": "5m"
+          },
+          {
+            "selected": true,
+            "text": "10m",
+            "value": "10m"
+          },
+          {
+            "selected": false,
+            "text": "30m",
+            "value": "30m"
+          },
+          {
+            "selected": false,
+            "text": "1h",
+            "value": "1h"
+          },
+          {
+            "selected": false,
+            "text": "6h",
+            "value": "6h"
+          },
+          {
+            "selected": false,
+            "text": "12h",
+            "value": "12h"
+          },
+          {
+            "selected": false,
+            "text": "1d",
+            "value": "1d"
+          }
+        ],
+        "query": "1m,5m,10m,30m,1h,6h,12h,1d",
+        "queryValue": "",
+        "refresh": 2,
+        "skipUrlSync": false,
+        "type": "interval"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {
+    "hidden": false,
+    "refresh_intervals": [
+      "30s",
+      "1m",
+      "5m"
+    ]
+  },
+  "timezone": "",
+  "title": "Homebrew AQI - Basic",
+  "version": 1
+}
