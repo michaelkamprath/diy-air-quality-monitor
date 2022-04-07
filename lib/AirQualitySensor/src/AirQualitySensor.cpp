@@ -43,6 +43,7 @@ AirQualitySensor::AirQualitySensor(uint32_t sensor_refresh_seconds)
                 "Used PSRAM = %d out of total PSRAM = %d, number of sensor history entries = %d for a history period of %f hours\n", 
                 ESP.getPsramSize() - ESP.getFreePsram(), ESP.getPsramSize(), sensor_history_size, sensor_history_size*_sensor_refresh_seconds/3600.0
             );
+            memset(_vectorStorage, 0xFF, sensor_history_size*sizeof(uint16_t));
         } else {
             Serial.print(F("ERROR - failed to allocate history storage in PSRAM"));
 
