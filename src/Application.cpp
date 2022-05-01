@@ -39,6 +39,7 @@ Application::Application()
   : _boot_time(0),
     _last_update_time(0),
     _last_transmit_time(0),
+    _last_wifi_reconnect_time(0),
     _sensor(AIR_QUALITY_SENSOR_UPDATE_SECONDS),
     _bme680(),
     _server(80),
@@ -448,6 +449,29 @@ void Application::loop(void)
   float aqi_10min = _sensor.airQualityIndex(ten_minutes_avg_pm2p5);
   setLEDColorForAQI(aqi_10min);
 
+  // Ensure the WIFI remains connected.
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.print(F("    ERROR - WiFi status is "));
+    Serial.print(WiFi.status());
+
+    if ((timestamp - _last_wifi_reconnect_time) < AIR_QUALITY_SENSOR_WIFI_RECONNECT_DELAY_SECONDS) {
+       Serial.print(F(", waiting to attempt reconnect.\n"));
+      return;
+    }
+
+     Serial.print(F(", attempting to reconnect."));
+    _last_wifi_reconnect_time = timestamp;
+
+    if (WiFi.reconnect()) {
+      Serial.print(F("    WiFi reconnected with IP address = "));
+      Serial.print(WiFi.localIP());
+      Serial.print(F("\n"));
+    } else {
+      Serial.println(F("    ERROR - failed to initiate WiFi reconnection."));
+    }
+    return;
+  }
+
   if (  (telemetry_url == nullptr)
       ||(timestamp - _last_transmit_time) < AIR_QUALITY_SENSOR_UPDATE_SECONDS*AIR_QUALITY_DATA_TRANSMIT_MULTIPLE)
   {
@@ -456,40 +480,27 @@ void Application::loop(void)
 
   _last_transmit_time = timestamp;
 
-  if (WiFi.status() == WL_CONNECTED) {
-    DynamicJsonDocument doc(2048);
-    getJsonPayload(doc);
+  DynamicJsonDocument doc(2048);
+  getJsonPayload(doc);
 
-    HTTPClient http;
-    String requestBody;
+  HTTPClient http;
+  String requestBody;
 
-    http.begin(telemetry_url);
-    http.addHeader("Content-Type", "application/json");
+  http.begin(telemetry_url);
+  http.addHeader("Content-Type", "application/json");
 
-    serializeJson(doc, requestBody);
-    int httpResponseCode = http.POST(requestBody);
-    if (httpResponseCode>0) {
-      String response = http.getString();
-      response.trim();
+  serializeJson(doc, requestBody);
+  int httpResponseCode = http.POST(requestBody);
+  if (httpResponseCode>0) {
+    String response = http.getString();
+    response.trim();
 
-      Serial.print(F("    POSTED data to telemetry service with response code = "));
-      Serial.print(httpResponseCode);
-      Serial.print(" and response = \"");
-      Serial.print(response);
-      Serial.print("\"\n");
-    } else {
-      Serial.printf("    ERROR when posting JSON = %d\n", httpResponseCode);
-    }
+    Serial.print(F("    POSTED data to telemetry service with response code = "));
+    Serial.print(httpResponseCode);
+    Serial.print(" and response = \"");
+    Serial.print(response);
+    Serial.print("\"\n");
   } else {
-      Serial.print(F("    ERROR - WiFi status is "));
-      Serial.print(WiFi.status());
-      Serial.print(F(", attempting to reconnect."));
-      if (WiFi.reconnect()) {
-        Serial.print(F("    WiFi reconnected with IP address = "));
-        Serial.print(WiFi.localIP());
-        Serial.print(F("\n"));
-      } else {
-        Serial.println(F("    ERROR - failed to reconnect WiFi."));
-      }
+    Serial.printf("    ERROR when posting JSON = %d\n", httpResponseCode);
   }
 }
