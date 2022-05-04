@@ -31,6 +31,11 @@
 #define AIR_QUALITY_SENSOR_UPDATE_SECONDS   2
 #endif
 
+// Defines the delay between repeated attempts to reconnect to Wifi access point.
+#ifndef AIR_QUALITY_SENSOR_WIFI_RECONNECT_DELAY_SECONDS
+#define AIR_QUALITY_SENSOR_WIFI_RECONNECT_DELAY_SECONDS 60
+#endif
+
 // Defines the number of AIR_QUALITY_SENSOR_UPDATE_SECONDS cycle that must occur between
 // each data transmission to the TELEMETRY_URL. Has no net effect if TELEMETRY_URL is
 // a nullptr. When transmitting data, only the measurement from the current cycle is

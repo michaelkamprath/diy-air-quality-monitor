@@ -20,6 +20,8 @@ private:
     time_t _boot_time;
     time_t _last_update_time;
     time_t _last_transmit_time;
+    time_t _last_wifi_reconnect_time;
+
     AirQualitySensor _sensor;
     Adafruit_BME680 _bme680;
     AsyncWebServer _server;
