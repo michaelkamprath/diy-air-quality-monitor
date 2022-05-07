@@ -1,3 +1,4 @@
+#include <time.h>
 #include "Utilities.h"
 
 void print_buffer( const uint8_t* buffer, uint8_t bufffer_size)
@@ -24,7 +25,7 @@ float calculatePartialOrderedAverage( const Vector<uint16_t>& data, size_t start
     size_t curr_idx = start_idx;
     size_t value_count = 0;
     uint32_t running_sum = 0;
-    
+
     while ((value_count < number_of_values) && (value_count < data.size())) {
         running_sum += data.at(curr_idx);
         value_count++;
