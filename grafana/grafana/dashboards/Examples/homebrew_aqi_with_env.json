@@ -348,7 +348,12 @@
       "fieldConfig": {
         "defaults": {
           "custom": {},
+          "color": {
+            "mode": "continuous-BlPu"
+          },
           "mappings": [],
+          "max": 1030,
+          "min": 930,
           "thresholds": {
             "mode": "absolute",
             "steps": [
