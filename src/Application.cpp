@@ -11,9 +11,6 @@ const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 0;
 const int   daylightOffset_sec = 0;
 
-const char* ssid     = WIFI_SSID;
-const char* password = WIFI_PASSWORD;
-
 #define SEALEVELPRESSURE_HPA (1013.25)
 #define UNSET_ENVIRONMENT_VALUE -301.0
 
@@ -70,9 +67,9 @@ void Application::setup(void)
 
   // start the WiFi
   Serial.print(F("Starting Wifi connection to SSID = "));
-  Serial.print(ssid);
+  Serial.print(String(WIFI_SSID));
   Serial.print(F(" "));
-  WiFi.begin(ssid, password);
+  WiFi.begin(String(WIFI_SSID).c_str(), String(WIFI_PASSWORD).c_str());
   while (WiFi.status() != WL_CONNECTED) {
       delay(500);
       Serial.print(".");
@@ -249,7 +246,7 @@ String Application::processStatsPageHTML(const String& var)
   if (var == "PERCENT") {
     return String("%");
   } else if (var == "WIFISSID") {
-    return String(ssid);
+    return String(WIFI_SSID);
   } else if (var == "IPADDRESS") {
     return WiFi.localIP().toString();
   } else if (var == "BOOTTIME") {
