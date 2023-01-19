@@ -7,9 +7,7 @@ void setup()
   Serial.begin(9600);
   // wait some time for the serial conenction to stabilize.
   delay(500);
-  Serial.print(F("\nStarting DIY Air Quality Monitor ("));
-  Serial.print(F(SENSOR_NAME));
-  Serial.println(F(")..."));
+  Serial.println(F("\nStarting DIY Air Quality Monitor ..."));
   Application::getInstance()->setup();
 }
 

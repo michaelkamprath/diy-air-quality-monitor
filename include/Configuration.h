@@ -1,17 +1,6 @@
 #ifndef __Configuration__
 #define __Configuration__
 
-// determines if the JSCON telemetry uplod is by default on or off
-#ifndef TELEMETRY_DEFAULT_STATUS
-#define TELEMETRY_DEFAULT_STATUS true
-#endif
-
-// defines the URL of a RESTful service that sensor measurements should be POSTed to in JSON form.
-// Set to nullptr if you do no wish to POST measurement JSON payloads.
-#ifndef TELEMETRY_URL
-#define TELEMETRY_URL    ""
-#endif
-
 // Defines the WiFi access point this device should connected to.
 #ifndef WIFI_SSID
 #define WIFI_SSID        "YOUR_WIFI_SSID"
@@ -19,12 +8,6 @@
 
 #ifndef WIFI_PASSWORD
 #define WIFI_PASSWORD    "YOUR_WIFI_PASSWORD"
-#endif
-
-// Defines the name this device should be given. This name is used to identify this device
-// in both the web UI it serves and the JSON payloads posted to TELEMETRY_URL.
-#ifndef SENSOR_NAME
-#define SENSOR_NAME     "YOUR_DEVICE_NAME"
 #endif
 
 // Defines the legnth of time between measurements are taken from the air quality sensor.
