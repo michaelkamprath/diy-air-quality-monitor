@@ -36,6 +36,8 @@ private:
     float _latestPressure;
     float _latestHumidity;
 
+    Configuration _config;
+
     void printLocalTime(void);
     void setupWebserver(void);
 
@@ -45,11 +47,14 @@ private:
     // web handlers
     String getContentType(String filename);
     String processStatsPageHTML(const String& var);
+    String processConfigPageHTML(const String& var);
 
     String getAQIStatusColor(float aqi_value) const;
     void handleRootPageRequest(AsyncWebServerRequest *request);
     void getJsonPayload(DynamicJsonDocument &doc) const;
     void handleStatsPageRequest(AsyncWebServerRequest *request);
+    void handleConfigPageRequest(AsyncWebServerRequest *request);
+    void handSubmitConfigRequest(AsyncWebServerRequest *request);
     void handleJsonRequest(AsyncWebServerRequest *request);
     void handleUnassignedPath(AsyncWebServerRequest *request);
 public:

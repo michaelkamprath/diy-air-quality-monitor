@@ -161,3 +161,121 @@
   font-size: calc(10px + (22 - 10) * ((max(min(100vw, 717px), 375px) - 375px) / (717 - 375)));
   text-align: center;
 }
+
+/* CSS specific to configurtion page */
+
+.config-frame {
+  margin: 20px 0;
+  padding: 15px;
+  border-radius: 15px;
+  border: 2px solid black;
+}
+
+.config-frame .form-item {
+  border-radius: 8px;
+  margin-bottom: 20px;
+  padding: 10px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 18px;
+  font-weight: bold;
+  background-color: #e1f8ff;
+}
+
+.config-frame .form-item .slider-label {
+  line-height: 34px;
+  vertical-align: middle;
+  display: table-cell;
+  padding-left: 10px;
+}
+
+.config-frame .form-item input[type=text] {
+  width: 100%;
+  padding: 8px 12px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  font-size: 16px;
+  font-weight: normal;
+  border: 1px solid #383838;
+}
+
+
+
+
+
+.config-frame .submit-button {
+  text-align: center;
+
+}
+
+.config-frame .submit-button input[type=submit] {
+	width: 90%;
+	padding-top: 8px;
+	padding-bottom: 8px;
+	font-family: Verdana, Geneva, sans-serif;
+	font-size: 24px;
+	font-weight: bold;
+	text-align: center;
+	line-height: 1.15;
+	margin: 0;
+	border: 2px solid #008CBA;
+	border-radius: 4px;
+	background-color: #008CBA;
+	color: white;
+}
+
+.config-frame .submit-button input[type=submit]:hover {
+	background-color: white;
+	color: black;
+}
+
+
+/* custom slider */
+
+.switch {
+  display: table-cell;
+  height: 34px;
+  position: relative;
+  width: 60px;
+}
+
+.switch input {
+  display:none;
+}
+
+.slider {
+  background-color: #ccc;
+  bottom: 0;
+  cursor: pointer;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  transition: .4s;
+}
+
+.slider:before {
+  background-color: #fff;
+  bottom: 4px;
+  content: "";
+  height: 26px;
+  left: 4px;
+  position: absolute;
+  transition: .4s;
+  width: 26px;
+}
+
+input:checked + .slider {
+  background-color: #66bb6a;
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}

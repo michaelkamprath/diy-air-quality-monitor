@@ -42,14 +42,16 @@ To build this project, you will need the folloing components:
 | `IO21` | `SDA` | The I2C data line |
 
 ## Data Collection
-This code has the option to push all of the granular and detailed data collected from the connected sensors to a data collection service in a JSON format for later analysis. This is done by editing the `TELEMETRY_URL` macro in the `include/Configuration.h` header file. A recommended data collection service is the [Simple JSON Collector Service](https://github.com/michaelkamprath/simple-json-collector-service). 
+This code has the option to push all of the granular and detailed data collected from the connected sensors to a data collection service in a JSON format for later analysis. This is done by editing the `TELEMETRY_URL` macro in the `include/Configuration.h` header file. A recommended data collection service is the [Simple JSON Collector Service](https://github.com/michaelkamprath/simple-json-collector-service).
+
+Note that this setting can be edited live on the device by visting the `http://your.device.ip/config.html` web paged served by the ESP32 device.
 
 ## TODO
 The following features are planned. Listed in no particular order.
 
 1. ~~Allow different rates for data collection from sensor and data posting to telemetry service. Note that the data collection rate must be greater than or equal to the telemetry posting rate.~~
 2. ~~Give options for look-back window of average AQI in the web UI~~
-   * Add cookie to remember user's last selected averaging window. 
+   * Add cookie to remember user's last selected averaging window.
 3. ~~Add support for the BME680 sensor, which would give gas, pressure, temperature & humidity readings.~~
    * Make the units used for the display of the temperature (celsius or fahrenheit) configurable
 4. Add support for an ePaper display that does the following:
@@ -58,4 +60,5 @@ The following features are planned. Listed in no particular order.
    * Display the BME 680 sensor data, if attached.
    * Display the web UI URL
 5. Create a web UI to set up and configure the monitor, replacing the `Configuration.h` file. Would depend on ePaper display to display the temporary WiFi AP the user needs to connect to to configure.
+   * _This has been started. Go to the web page `http://your.device.ip/config.html` on your ESP32 device._
 6. Add ability to download history as a CSV from web UI.

@@ -11,12 +11,8 @@ const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 0;
 const int   daylightOffset_sec = 0;
 
-const char* telemetry_url = TELEMETRY_URL;
 const char* ssid     = WIFI_SSID;
 const char* password = WIFI_PASSWORD;
-
-// this is the sensor name that will be in the telemetry JSON
-const char* sensor_name = SENSOR_NAME;
 
 #define SEALEVELPRESSURE_HPA (1013.25)
 #define UNSET_ENVIRONMENT_VALUE -301.0
@@ -52,7 +48,8 @@ Application::Application()
     _hasBME680(false),
     _latestTemperature(UNSET_ENVIRONMENT_VALUE),
     _latestPressure(UNSET_ENVIRONMENT_VALUE),
-    _latestHumidity(UNSET_ENVIRONMENT_VALUE)
+    _latestHumidity(UNSET_ENVIRONMENT_VALUE),
+    _config()
 {
 
 }
@@ -124,6 +121,9 @@ void Application::setupWebserver(void)
   _server.on("/stats", HTTP_GET, std::bind(&Application::handleStatsPageRequest, this, std::placeholders::_1));
   _server.on("/stats.html", HTTP_GET, std::bind(&Application::handleStatsPageRequest, this, std::placeholders::_1));
   _server.on("/json", HTTP_GET, std::bind(&Application::handleJsonRequest, this, std::placeholders::_1));
+  _server.on("/config.html", HTTP_GET, std::bind(&Application::handleConfigPageRequest, this, std::placeholders::_1));
+  _server.on("/update", HTTP_GET, std::bind(&Application::handSubmitConfigRequest, this, std::placeholders::_1));
+
   _server.onNotFound(std::bind(&Application::handleUnassignedPath, this, std::placeholders::_1));
 
   _server.begin();
@@ -178,6 +178,19 @@ void Application::handleStatsPageRequest(AsyncWebServerRequest *request)
   request->send(SPIFFS, stats_file, getContentType(stats_file), false, std::bind(&Application::processStatsPageHTML, this, std::placeholders::_1));
 }
 
+void Application::handleConfigPageRequest(AsyncWebServerRequest *request)
+{
+  String config_file = "/config.html";
+  Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
+  request->send(
+    SPIFFS,
+    config_file,
+    getContentType(config_file),
+    false,
+    std::bind(&Application::processConfigPageHTML, this, std::placeholders::_1)
+  );
+}
+
 void Application::handleJsonRequest(AsyncWebServerRequest *request)
 {
   Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
@@ -188,6 +201,47 @@ void Application::handleJsonRequest(AsyncWebServerRequest *request)
   serializeJson(jsonPayload, requestBody);
 
   request->send(200, "application/json", requestBody);
+}
+
+void Application::handSubmitConfigRequest(AsyncWebServerRequest *request)
+{
+  Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
+
+  // GET input1 value on <ESP_IP>/get?input1=<inputMessage>
+  if (request->hasParam("enable-json")) {
+    String check_value = request->getParam("enable-json")->value();
+    if (check_value == "on") {
+      this->_config.setJSONUploadEnabled(true);
+    } else {
+      this->_config.setJSONUploadEnabled(false);
+    }
+  } else {
+    // if this parameter is not present, that means the checkbox has no value (not)
+    this->_config.setJSONUploadEnabled(false);
+  }
+  Serial.printf(
+    "  The JSON telemetry upload has been %s\n",
+    this->_config.getJSONUploadEnabled() ? "ENABLED" : "DISABLED"
+  );
+
+  if (request->hasParam("server-url")) {
+    String server_url = request->getParam("server-url")->value();
+    this->_config.setServerURL(server_url);
+    Serial.printf(
+      "  The JSON telemetry upload URL has been set to: %s\n",
+      this->_config.getServerURL().c_str()
+    );
+  }
+
+  if (request->hasParam("sensor-name")) {
+    String sensor_name = request->getParam("sensor-name")->value();
+    this->_config.setSensorName(sensor_name);
+    Serial.printf(
+      "  The sensor name has been set to: %s\n",
+      this->_config.getSensorName().c_str()
+    );
+  }
+  request->redirect("/config.html");
 }
 
 String Application::processStatsPageHTML(const String& var)
@@ -227,11 +281,7 @@ String Application::processStatsPageHTML(const String& var)
     snprintf(s, sizeof(s), "%d seconds", AIR_QUALITY_SENSOR_UPDATE_SECONDS*AIR_QUALITY_DATA_TRANSMIT_MULTIPLE);
     return String(s);
   } else if (var == "TRANSMITURL") {
-    if (telemetry_url == nullptr) {
-      return String("None");
-    } else {
-      return String(telemetry_url);
-    }
+    return this->_config.getServerURL();
   } else if (var == "PDSTATUS") {
     return String(_sensor.statusParticleDetector());
   } else if (var == "LASERSTATUS") {
@@ -245,6 +295,22 @@ String Application::processStatsPageHTML(const String& var)
   return String();
 }
 
+String Application::processConfigPageHTML(const String& var)
+{
+  if (var == "ENABLE_CHECKED") {
+    if (this->_config.getJSONUploadEnabled()) {
+      return String("checked");
+    } else {
+      return String();
+    }
+  } else if (var == "SERVER_URL") {
+    return this->_config.getServerURL();
+  } else if (var == "SENSOR_NAME") {
+    return this->_config.getSensorName();
+  }
+
+  return String();
+}
 void Application::setupLED(void)
 {
 #if MCU_BOARD_TYPE == MCU_TINYPICO
@@ -284,7 +350,7 @@ void Application::getJsonPayload(DynamicJsonDocument &doc) const {
   float one_day_avg_pm2p5 = _sensor.averagePM2p5(60*60*24);
 
   doc["timestamp"] = _last_update_time;
-  doc["sensor_id"] = sensor_name;
+  doc["sensor_id"] = this->_config.getSensorName();
   doc["uptime"] = (timestamp - _boot_time);
   doc["has_environment_sensor"] = _hasBME680;
   doc["wifi"]["ip_address"] = WiFi.localIP().toString();
@@ -309,7 +375,7 @@ void Application::getJsonPayload(DynamicJsonDocument &doc) const {
   float aqi = _sensor.airQualityIndex(current_avg_pm2p5);
   doc["air_quality_index"]["aqi_current"]["value"] = aqi;
   doc["air_quality_index"]["aqi_current"]["color"] = getAQIStatusColor(aqi);
-  
+
   aqi = _sensor.airQualityIndex(ten_minutes_avg_pm2p5);
   doc["air_quality_index"]["aqi_10min"]["value"] =  aqi;
   doc["air_quality_index"]["aqi_10min"]["color"] = getAQIStatusColor(aqi);
@@ -434,7 +500,11 @@ void Application::loop(void)
 
   // check in on BME 680
   if (_hasBME680 && (bme680EndTime > 0)) {
-    if (_bme680.endReading()) {
+    if (
+      _bme680.endReading()
+      && (_bme680.temperature > -50.0)    // gaurd against errors that result in nonsensical values.
+      && (_bme680.temperature < 100.0)    // gaurd against errors that result in nonsensical values.
+    ) {
       _latestTemperature = _bme680.temperature;        // °C
       _latestPressure = _bme680.pressure / 100.0;      // hPa
       _latestHumidity = _bme680.humidity;              // %
@@ -472,7 +542,7 @@ void Application::loop(void)
     return;
   }
 
-  if (  (telemetry_url == nullptr)
+  if (  (!this->_config.getJSONUploadEnabled())
       ||(timestamp - _last_transmit_time) < AIR_QUALITY_SENSOR_UPDATE_SECONDS*AIR_QUALITY_DATA_TRANSMIT_MULTIPLE)
   {
     return;
@@ -486,7 +556,7 @@ void Application::loop(void)
   HTTPClient http;
   String requestBody;
 
-  http.begin(telemetry_url);
+  http.begin(this->_config.getServerURL());
   http.addHeader("Content-Type", "application/json");
 
   serializeJson(doc, requestBody);
@@ -497,9 +567,9 @@ void Application::loop(void)
 
     Serial.print(F("    POSTED data to telemetry service with response code = "));
     Serial.print(httpResponseCode);
-    Serial.print(" and response = \"");
+    Serial.print(F(" and response = \""));
     Serial.print(response);
-    Serial.print("\"\n");
+    Serial.print(F("\"\n"));
   } else {
     Serial.printf("    ERROR when posting JSON = %d\n", httpResponseCode);
   }

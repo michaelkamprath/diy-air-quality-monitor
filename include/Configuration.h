@@ -1,13 +1,18 @@
 #ifndef __Configuration__
 #define __Configuration__
 
+// determines if the JSCON telemetry uplod is by default on or off
+#ifndef TELEMETRY_DEFAULT_STATUS
+#define TELEMETRY_DEFAULT_STATUS true
+#endif
+
 // defines the URL of a RESTful service that sensor measurements should be POSTed to in JSON form.
 // Set to nullptr if you do no wish to POST measurement JSON payloads.
 #ifndef TELEMETRY_URL
-#define TELEMETRY_URL    nullptr
+#define TELEMETRY_URL    ""
 #endif
 
-// Defines the WiFi access point this device should connected to. 
+// Defines the WiFi access point this device should connected to.
 #ifndef WIFI_SSID
 #define WIFI_SSID        "YOUR_WIFI_SSID"
 #endif
@@ -64,6 +69,28 @@
 #ifndef MCU_BOARD_TYPE
 #define MCU_BOARD_TYPE MCU_TINYPICO
 #endif
+
+#include <Arduino.h>
+
+class Configuration {
+private:
+    bool _json_upload_enabled;
+    String _server_url;
+    String _sensor_name;
+
+public:
+    Configuration();
+    virtual ~Configuration();
+
+    const String& getServerURL(void) const;
+    void setServerURL(const String& url);
+
+    bool getJSONUploadEnabled(void) const;
+    void setJSONUploadEnabled(bool enabled);
+
+    const String& getSensorName(void) const;
+    void setSensorName(const String& name);
+};
 
 
 #endif // __Configuration__
