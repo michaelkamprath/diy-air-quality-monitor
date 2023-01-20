@@ -169,6 +169,7 @@
   padding: 15px;
   border-radius: 15px;
   border: 2px solid black;
+  box-sizing:border-box;
 }
 
 .config-frame .form-item {
@@ -181,26 +182,31 @@
   background-color: #e1f8ff;
 }
 
-.config-frame .form-item .slider-label {
-  line-height: 34px;
+.config-frame .form-item .flex-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.config-frame .form-item .item-label {
+  width: 290px;
   vertical-align: middle;
-  display: table-cell;
-  padding-left: 10px;
+}
+
+.config-frame .form-item .input-box {
+  width: 50%;
 }
 
 .config-frame .form-item input[type=text] {
   width: 100%;
-  padding: 8px 12px;
   margin: 8px 0;
   box-sizing: border-box;
-  font-size: 16px;
+  padding: 8px;
+  font-size: 14pt;
   font-weight: normal;
   border: 1px solid #383838;
+  border-radius: 4px;
 }
-
-
-
-
 
 .config-frame .submit-button {
   text-align: center;
@@ -228,11 +234,79 @@
 	color: black;
 }
 
+.config-frame input[type=number] {
+  width: 80px;
+  height: 24px;
+  padding: 8px;
+  font-size: 14pt;
+  border: 1px solid #383838;
+  border-radius: 4px;
+  z-index: 1;
+}
+
+
+.config-frame select {
+
+  /* styling */
+  background-color: white;
+  border: thin solid blue;
+  border-radius: 4px;
+  display: inline-block;
+  font: inherit;
+  font-size: 12pt;
+  line-height: 1.5em;
+  padding: 0.5em 3.5em 0.5em 1em;
+
+  /* reset */
+
+  margin: 0;
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.config-frame select {
+  background-image:
+    linear-gradient(45deg, transparent 50%, blue 50%),
+    linear-gradient(135deg, blue 50%, transparent 50%),
+    linear-gradient(to right, skyblue, skyblue);
+  background-position:
+    calc(100% - 20px) calc(1em + 2px),
+    calc(100% - 15px) calc(1em + 2px),
+    100% 0;
+  background-size:
+    5px 5px,
+    5px 5px,
+    2.5em 2.5em;
+  background-repeat: no-repeat;
+  border-color: black;
+}
+
+.config-frame select:focus {
+  background-image:
+    linear-gradient(45deg, white 50%, transparent 50%),
+    linear-gradient(135deg, transparent 50%, white 50%),
+    linear-gradient(to right, gray, gray);
+  background-position:
+    calc(100% - 15px) 1em,
+    calc(100% - 20px) 1em,
+    100% 0;
+  background-size:
+    5px 5px,
+    5px 5px,
+    2.5em 2.5em;
+  background-repeat: no-repeat;
+  border-color: grey;
+  outline: 0;
+}
+
 
 /* custom slider */
 
 .switch {
-  display: table-cell;
+  display: inline-block;
   height: 34px;
   position: relative;
   width: 60px;
@@ -279,3 +353,4 @@ input:checked + .slider:before {
 .slider.round:before {
   border-radius: 50%;
 }
+
