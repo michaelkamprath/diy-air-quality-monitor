@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html>
-
   <head>
     <title>DIY Air Quality Monitor - Configuration</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -18,10 +17,27 @@
               </label>
               <div class="slider-label">Enable posting JSON telemetry</div>
             </div>
-            <div class="form-item">JSON telementry server URL: </br>
-            <input type="text" name="server-url" value="^SERVER_URL^"></div>
-            <div class="form-item">Sensor name:</br>
-            <input type="text" name="sensor-name" value="^SENSOR_NAME^"></div>
+            <div class="form-item">
+              JSON telementry server URL: </br>
+              <input type="text" name="server-url" value="^SERVER_URL^">
+            </div>
+            <div class="form-item">
+              Sensor name:</br>
+              <input type="text" name="sensor-name" value="^SENSOR_NAME^">
+            </div>
+            <div class="form-item">
+              <label for="upload-rate">Upload rate (seconds)</label>
+              <input type="number" step="5" max="3600" min="5" value="^UPLOADRATE^" id="upload-rate" name="upload-rate">
+            </div>
+            <div class="form-item">
+              LED Brightness:
+              <select id="led-brightness" name="led-brightness">
+                <option value="0" ^LED_OFF^>Off</option>
+                <option value="1" ^LED_LOW^>Low</option>
+                <option value="2" ^LED_MED^>Medium</option>
+                <option value="3" ^LED_HI^>High</option>
+              </select>
+            </div>
             <div class="submit-button"><input type="submit" value="Submit"></div>
         </form>
       </div>

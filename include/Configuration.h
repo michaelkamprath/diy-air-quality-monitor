@@ -1,13 +1,28 @@
 #ifndef __Configuration__
 #define __Configuration__
 
-// Defines the WiFi access point this device should connected to.
-#ifndef WIFI_SSID
-#define WIFI_SSID        "YOUR_WIFI_SSID"
+//
+// Default Configuration Values
+//
+// These are not intended to be editted here, but the values can be overriden in the 
+// platformio.ini file.
+//
+
+// determines if the JSCON telemetry uplod is by default on or off
+#ifndef TELEMETRY_DEFAULT_STATUS
+#define TELEMETRY_DEFAULT_STATUS false
 #endif
 
-#ifndef WIFI_PASSWORD
-#define WIFI_PASSWORD    "YOUR_WIFI_PASSWORD"
+// defines the URL of a RESTful service that sensor measurements should be POSTed to in JSON form.
+// Set to nullptr if you do no wish to POST measurement JSON payloads.
+#ifndef TELEMETRY_URL
+#define TELEMETRY_URL    ""
+#endif
+
+// Defines the name this device should be given. This name is used to identify this device
+// in both the web UI it serves and the JSON payloads posted to TELEMETRY_URL.
+#ifndef SENSOR_NAME
+#define SENSOR_NAME     ""
 #endif
 
 // Defines the legnth of time between measurements are taken from the air quality sensor.
@@ -24,18 +39,21 @@
 #define AIR_QUALITY_SENSOR_WIFI_RECONNECT_DELAY_SECONDS 60
 #endif
 
-// Defines the number of AIR_QUALITY_SENSOR_UPDATE_SECONDS cycle that must occur between
-// each data transmission to the TELEMETRY_URL. Has no net effect if TELEMETRY_URL is
-// a nullptr. When transmitting data, only the measurement from the current cycle is
+// Defines the number of seconds that must occur between each data transmission to the
+// TELEMETRY_URL. Has no net effect if TELEMETRY_URL is empty.
+// When transmitting data, only the measurement from the most recent cycle is
 // transmitted. Must be an integer.
-#ifndef AIR_QUALITY_DATA_TRANSMIT_MULTIPLE
-#define AIR_QUALITY_DATA_TRANSMIT_MULTIPLE   30
+#ifndef AIR_QUALITY_DATA_TRANSMIT_SECONDS
+#define AIR_QUALITY_DATA_TRANSMIT_SECONDS   90
 #endif
 
-// Sets the brightness level of the on-board RGB LED. Should be a integer between 0 (off) and
-// 255 (full brightness). Hex values are fine.
+// Sets the brightness level of the on-board RGB LED. This is an index value as follows:
+//      0 = off
+//      1 = Low (85/255)
+//      2 = Medium (170/255)
+//      3 = Full (255/555)
 #ifndef STATUS_LED_BRIGHTNESS
-#define STATUS_LED_BRIGHTNESS   0x80
+#define STATUS_LED_BRIGHTNESS  2
 #endif
 
 // BME680 I2C Address. The default address for the AdaFruit Libary is 0x77, and this is what the AdaFruit BME680 board is set to.
@@ -60,6 +78,8 @@ private:
     bool _json_upload_enabled;
     String _server_url;
     String _sensor_name;
+    uint16_t _upload_rate;
+    uint8_t _led_brightness;
 
 public:
     Configuration();
@@ -73,6 +93,13 @@ public:
 
     const String& getSensorName(void) const;
     void setSensorName(const String& name);
+
+    uint16_t getJSONUploadRateSeconds(void) const;
+    void setJSONUploadRateSeconds(uint16_t seconds);
+
+    uint8_t getLEDBrightnessValue(void) const;
+    uint8_t getLEDBrightnessIndex(void) const;
+    void setLEDBrightnessIndex(uint8_t index);
 };
 
 

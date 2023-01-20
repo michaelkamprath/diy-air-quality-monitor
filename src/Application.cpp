@@ -238,6 +238,29 @@ void Application::handSubmitConfigRequest(AsyncWebServerRequest *request)
       this->_config.getSensorName().c_str()
     );
   }
+
+  if (request->hasParam("upload-rate")) {
+    String rate_str = request->getParam("upload-rate")->value();
+    int16_t rate_val = rate_str.toInt();
+    this->_config.setJSONUploadRateSeconds(rate_val);
+    Serial.printf(
+      "  The JSON upload rate has been set to %d seconds\n",
+      this->_config.getJSONUploadRateSeconds()
+    );
+  }
+
+  if (request->hasParam("led-brightness")) {
+    String value_str = request->getParam("led-brightness")->value();
+    int16_t value = value_str.toInt();
+    this->_config.setLEDBrightnessIndex(value);
+    Serial.printf(
+      "  The LED brightness index has been set to %d\n",
+      this->_config.getLEDBrightnessIndex()
+    );
+    this->setupLED();
+  }
+
+
   request->redirect("/config.html");
 }
 
@@ -275,7 +298,7 @@ String Application::processStatsPageHTML(const String& var)
     return String(s);
   } else if (var == "TRANSMITRATE") {
     char s[32];
-    snprintf(s, sizeof(s), "%d seconds", AIR_QUALITY_SENSOR_UPDATE_SECONDS*AIR_QUALITY_DATA_TRANSMIT_MULTIPLE);
+    snprintf(s, sizeof(s), "%d seconds", this->_config.getJSONUploadRateSeconds());
     return String(s);
   } else if (var == "TRANSMITURL") {
     return this->_config.getServerURL();
@@ -304,6 +327,32 @@ String Application::processConfigPageHTML(const String& var)
     return this->_config.getServerURL();
   } else if (var == "SENSOR_NAME") {
     return this->_config.getSensorName();
+  } else if (var == "UPLOADRATE") {
+    return String(this->_config.getJSONUploadRateSeconds());
+  } else if (var == "LED_OFF") {
+    if (this->_config.getLEDBrightnessIndex() == 0) {
+      return String("selected");
+    } else {
+      return String("");
+    }
+  } else if (var == "LED_LOW") {
+    if (this->_config.getLEDBrightnessIndex() == 1) {
+      return String("selected");
+    } else {
+      return String("");
+    }
+  } else if (var == "LED_MED") {
+    if (this->_config.getLEDBrightnessIndex() == 2) {
+      return String("selected");
+    } else {
+      return String("");
+    }
+  } else if (var == "LED_HI") {
+    if (this->_config.getLEDBrightnessIndex() == 3) {
+      return String("selected");
+    } else {
+      return String("");
+    }
   }
 
   return String();
@@ -313,7 +362,7 @@ void Application::setupLED(void)
 #if MCU_BOARD_TYPE == MCU_TINYPICO
   _tinyPICO.DotStar_SetPower(true);
   _tinyPICO.DotStar_Clear();
-  _tinyPICO.DotStar_SetBrightness(STATUS_LED_BRIGHTNESS);
+  _tinyPICO.DotStar_SetBrightness(this->_config.getLEDBrightnessValue());
 #elif MCU_BOARD_TYPE == MCU_EZSBC_IOT
 // Set up the rgb led names
 #define ledR  16
@@ -457,7 +506,7 @@ void Application::setLEDColorForAQI(float aqi_value)
 #if MCU_BOARD_TYPE == MCU_TINYPICO
   _tinyPICO.DotStar_SetPixelColor(red, green, blue);
 #elif MCU_BOARD_TYPE == MCU_EZSBC_IOT
-#define CALC_LED_DUTY_CYCLE(cv) (255 - (uint32_t)cv*STATUS_LED_BRIGHTNESS/255)
+#define CALC_LED_DUTY_CYCLE(cv) (255 - (uint32_t)cv*this->_config.getLEDBrightnessValue()/255)
   // write red component to channel 1, etc.
   ledcWrite(1, CALC_LED_DUTY_CYCLE(red));
   ledcWrite(2, CALC_LED_DUTY_CYCLE(green));
@@ -540,7 +589,8 @@ void Application::loop(void)
   }
 
   if (  (!this->_config.getJSONUploadEnabled())
-      ||(timestamp - _last_transmit_time) < AIR_QUALITY_SENSOR_UPDATE_SECONDS*AIR_QUALITY_DATA_TRANSMIT_MULTIPLE)
+      || ((timestamp - _last_transmit_time) < this->_config.getJSONUploadRateSeconds())
+    )
   {
     return;
   }

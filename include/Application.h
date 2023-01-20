@@ -12,6 +12,15 @@
 #include <TinyPICO.h>
 #endif
 
+// Defines the WiFi access point this device should connected to.
+// These values should be edited in the platformio.ini file.
+#ifndef WIFI_SSID
+#define WIFI_SSID        "YOUR_WIFI_SSID"
+#endif
+
+#ifndef WIFI_PASSWORD
+#define WIFI_PASSWORD    "YOUR_WIFI_PASSWORD"
+#endif
 
 class Application {
 private:
