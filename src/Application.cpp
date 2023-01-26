@@ -1,11 +1,23 @@
 #include <Arduino.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-#include <SPIFFS.h>
 #include <Wire.h>
 #include "time.h"
 #include "Application.h"
 #include "Utilities.h"
+
+#ifndef USE_LittleFS
+#define USE_LittleFS 1
+#endif
+
+#include <FS.h>
+#if USE_LittleFS != 0
+  #include <LittleFS.h>
+  #define SPIFFS LittleFS
+#else
+  #include <SPIFFS.h>
+#endif
+
 
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 0;
@@ -48,7 +60,6 @@ Application::Application()
     _latestHumidity(UNSET_ENVIRONMENT_VALUE),
     _config()
 {
-
 }
 
 Application::~Application()
@@ -66,13 +77,24 @@ void Application::setup(void)
   setupLED();
 
   // start the WiFi
-  Serial.print(F("Starting Wifi connection to SSID = "));
-  Serial.print(String(WIFI_SSID));
-  Serial.print(F(" "));
-  WiFi.begin(String(WIFI_SSID).c_str(), String(WIFI_PASSWORD).c_str());
   while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
-      Serial.print(".");
+    Serial.print(F("Starting Wifi connection to SSID = "));
+    Serial.print(String(WIFI_SSID));
+    Serial.print(F(" "));
+    WiFi.begin(String(WIFI_SSID).c_str(), String(WIFI_PASSWORD).c_str());
+    int counter = 0;
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(F("."));
+        counter++;
+        if (counter > 35) {
+          // start over again
+          WiFi.disconnect();
+          Serial.println(F(""));
+          delay(10*1000);
+          break;
+        }
+    }
   }
   Serial.print(F("\nWiFi connected with ip address = "));
   Serial.print(WiFi.localIP());
@@ -103,10 +125,19 @@ void Application::setup(void)
 }
 void Application::printLocalTime(void)
 {
+  int try_count = 0;
   struct tm timeinfo;
-  if(!getLocalTime(&timeinfo)){
-    Serial.println("Failed to obtain time");
-    return;
+
+  while (!getLocalTime(&timeinfo)) {
+    try_count++;
+    if (try_count < 10) {
+      Serial.print(F("Could not fetch network time. Attempt #"));
+      Serial.print(try_count);
+      Serial.println(F(""));
+    } else {
+      Serial.println("Failed to obtain time");
+      return;
+    }
   }
   Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
 }
@@ -595,29 +626,36 @@ void Application::loop(void)
     return;
   }
 
-  _last_transmit_time = timestamp;
+  if(WiFi.status()== WL_CONNECTED) {
+    _last_transmit_time = timestamp;
 
-  DynamicJsonDocument doc(2048);
-  getJsonPayload(doc);
+    DynamicJsonDocument doc(2048);
+    getJsonPayload(doc);
 
-  HTTPClient http;
-  String requestBody;
+    HTTPClient http;
+    String requestBody;
 
-  http.begin(this->_config.getServerURL());
-  http.addHeader("Content-Type", "application/json");
+    Serial.print(F("    Initiating a JSON POST to: "));
+    Serial.print(this->_config.getServerURL().c_str());
+    Serial.print(F("\n"));
+    http.begin(this->_config.getServerURL());
+    http.addHeader("Content-Type", "application/json");
 
-  serializeJson(doc, requestBody);
-  int httpResponseCode = http.POST(requestBody);
-  if (httpResponseCode>0) {
-    String response = http.getString();
-    response.trim();
+    serializeJson(doc, requestBody);
+    int httpResponseCode = http.POST(requestBody);
+    if (httpResponseCode>0) {
+      String response = http.getString();
+      response.trim();
 
-    Serial.print(F("    POSTED data to telemetry service with response code = "));
-    Serial.print(httpResponseCode);
-    Serial.print(F(" and response = \""));
-    Serial.print(response);
-    Serial.print(F("\"\n"));
+      Serial.print(F("    POSTED data to telemetry service with response code = "));
+      Serial.print(httpResponseCode);
+      Serial.print(F(" and response = \""));
+      Serial.print(response);
+      Serial.print(F("\"\n"));
+    } else {
+      Serial.printf("    ERROR when posting JSON = %d\n", httpResponseCode);
+    }
   } else {
-    Serial.printf("    ERROR when posting JSON = %d\n", httpResponseCode);
+    Serial.println(F("    ERROR - Coinfigured to perform JSON upload but WiFi is not connected."));
   }
 }

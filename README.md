@@ -28,18 +28,20 @@ To build this project, you will need the folloing components:
 Refer to your ESP32 development board's pinout to determine the exact location of the indicated ESP32 pin.
 
 ### Panasonic SN-GCJA5
-| ESP32 Pin | Sesnor Pin | Description |
+This code's default confuration for the serial `RX` pin that will be used to recieve data form the air quality sensor is listed below. Note the the `RX` can be configured in the `platformio.ini` file byt setting the `SERIAL_RX_PIN` build flag for the device configuration you are using.
+
+| ESP32 `RX` Pin | Sesnor Pin | Description |
 |:-:|:-:|:--|
 | `5V` | 5 | The Panasonic SN-GCJA5 uses 5V power. On most ESP32 boards this is marked as either `5V` or `Vusb`. |
-| `GND` | 4 | Ground |
-| `IO33` | 1 | The Panasonic SN-GCJA5 serial TX line (so RX on the ESP32). Note that this serial line operates at 3.3V, so it is voltage safe for the ESP32 |
+| `GND` |  4 | Ground |
+| `IO33` |  1 | The Panasonic SN-GCJA5 serial TX line (so RX on the ESP32). Note that this serial line operates at 3.3V, so it is voltage safe for the ESP32 |,
 
 ### BME680 Environment Sensor Board
 | ESP32 Pin | Sesnor Pin | Description |
 |:-:|:-:|:--|
-| `3v3` | `Vcc` | The BME680 runs off of 3.3V. |
-| `GND` | `GND` | Ground |
-| `IO22` | `SCL` | The I2C clock line |
+| `3v3` |  `Vcc` | The BME680 runs off of 3.3V. |
+| `GND` |  `GND` | Ground |
+| `IO22` |  `SCL` | The I2C clock line |
 | `IO21` | `SDA` | The I2C data line |
 
 # Usage

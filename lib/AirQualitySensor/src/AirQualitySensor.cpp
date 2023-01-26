@@ -73,22 +73,23 @@ AirQualitySensor::~AirQualitySensor()
 
 void AirQualitySensor::begin(void)
 {
+    Serial.printf("Starting serial connection to particulate sensor. RX pin = %d\n", SERIAL_RX_PIN);
     // start hardware serial. RX is pin 33 on TinyPico. Don't really need TX.
     // TODO: The default RX buffer size is 256, is FIFO, and drops new data when full.
     // We recieve 32 bytes at a time.  We read from the buffer every AIR_QUALITY_SENSOR_UPDATE_SECONDS,
     // but the sensor sends bytes every 1 second. This all adds up to we are not getting the
-    // most recent measurement  by not reading every 1 second AND we are dropping 
+    // most recent measurement  by not reading every 1 second AND we are dropping
     // the most recent measurement if we wait too long.  The TODO here is the rectify that situation, likely
     // by fetching measurements every second, but only uploading them every 15-30 seconds.
     // Note we do drain the serial buffer after taking each measurement. So our "current" meausrment
     // is AIR_QUALITY_SENSOR_UPDATE_SECONDS old when we read it since the first thing in the queue after
-    // we drain it is the measurement that occurs immediately after. Until this TODO is addressed, keep 
+    // we drain it is the measurement that occurs immediately after. Until this TODO is addressed, keep
     // AIR_QUALITY_SENSOR_UPDATE_SECONDS a smallish value.
-    AQMSerial.begin(9600, SERIAL_8E1, 33, 32 );
+    AQMSerial.begin(9600, SERIAL_8E1, SERIAL_RX_PIN, SERIAL_TX_PIN );
 
     // The Panasonic SN-GCJA5 takes 28 seconds to get power up and normalize.
     // we will wait 28 seconds here.
-    Serial.println(F("Waiting 28 seconds for particulate sensor to power up and initialize"));
+    Serial.println(F("Waiting 28 seconds for particulate sensor to power up and initialize ..."));
     delay(28000);
 }
 
@@ -98,7 +99,7 @@ bool AirQualitySensor::updateSensorReading(void)
     int recieveCount = 0;
     while( AQMSerial.available() && (recieveCount < AQM_BUFFER_SIZE) ) {
         buffer[recieveCount] = AQMSerial.read();
-        recieveCount++; 
+        recieveCount++;
     }
     if (recieveCount != AQM_BUFFER_SIZE) {
         Serial.print(F("ERROR: did not receive full data set from sensor. Bytes recieved = "));
@@ -125,7 +126,7 @@ bool AirQualitySensor::updateSensorReading(void)
     }
 
     // TODO confirm the XOR byte to ensure no transmission errors.
-    
+
     Serial.print(F("    Received data = "));
     print_buffer(buffer, recieveCount);
 
@@ -171,7 +172,7 @@ bool AirQualitySensor::updateSensorReading(void)
         _pm2p5_history_insertion_idx = _pm2p5_history.size() - 1;
     } else {
         // make _pm2p5_history behave like a FIFO stack, but
-        // we really don't care about the stack order, so do 
+        // we really don't care about the stack order, so do
         // so in a compute optimized manner.
         _pm2p5_history_insertion_idx++;
         if (_pm2p5_history_insertion_idx >= _pm2p5_history.size()) {
@@ -223,7 +224,7 @@ float AirQualitySensor::averagePM2p5( int32_t window_size_seconds ) const
 
 float AirQualitySensor::airQualityIndex( float avgPM2p5 ) const
 {
-    // 
+    //
     // Calculate the AQI. Got this formula from:
     //   https://www.epa.gov/sites/production/files/2016-04/documents/2012_aqi_factsheet.pdf
     //

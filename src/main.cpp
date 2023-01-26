@@ -8,6 +8,7 @@ void setup()
   // wait some time for the serial conenction to stabilize.
   delay(500);
   Serial.println(F("\nStarting DIY Air Quality Monitor ..."));
+  Serial.printf("Software built for board type = %d\n", MCU_BOARD_TYPE);
   Application::getInstance()->setup();
 }
 

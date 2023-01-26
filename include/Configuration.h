@@ -4,7 +4,7 @@
 //
 // Default Configuration Values
 //
-// These are not intended to be editted here, but the values can be overriden in the 
+// These are not intended to be editted here, but the values can be overriden in the
 // platformio.ini file.
 //
 
