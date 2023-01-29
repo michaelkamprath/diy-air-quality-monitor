@@ -76,7 +76,7 @@ async function updateMetrics() {
   } else {
     document.getElementById("bme680").style.display = "none";
   }
-  
+
   document.getElementById("sensor_name").textContent = response.sensor_id;
   document.getElementById("content").style.display = "block";
 }
