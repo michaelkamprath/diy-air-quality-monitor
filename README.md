@@ -69,6 +69,30 @@ Note that this setting can be edited live on the device by visting the `http://y
 ### Grafana
 A Grafa-based data collection service can be set up to pull data from the air quality monitor. See [the grafana directory](grafana/) for more information.
 
+### Home Assistant
+This air quality monitor can be used as a sensor for [Home Assistant](https://www.home-assistant.io) with no further modification. This is done by having your Home Assistant server polling the DIY Air Quality Monitor device. You will need to manually edit the `configuration.yaml` for your Home Assistant server to add a RESTful sensor. Here is an example snippet from adding the air quality and BME680 temperature values:
+```yaml
+rest:
+  - scan_interval: 60
+    resource: http://your.device.ip/json
+    sensor:
+      - name: "DIY Air Quality Index"
+        device_class: aqi
+        json_attributes:
+          - "sensor_id"
+          - "uptime"
+        unique_id: "diy-air-quality-aqi"
+        value_template: "{{ value_json.air_quality_index.aqi_1hour.value }}"
+      - name: "DIY Air Quality Temperature"
+        device_class: temperature
+        json_attributes:
+          - "sensor_id"
+          - "uptime"
+        unique_id: "diy-air-quality-temperature"
+        value_template: "{{ value_json.environment.temperature_f.value }}"
+        unit_of_measurement: "°F"
+```
+Other values found in the status JSON can be added as a sensor in similar fashion.
 # TODO
 The following features are planned. Listed in no particular order.
 
