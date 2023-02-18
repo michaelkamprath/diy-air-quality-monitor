@@ -10,6 +10,8 @@
 
 #if MCU_BOARD_TYPE == MCU_TINYPICO
 #include <TinyPICO.h>
+#elif MCU_BOARD_TYPE == MCU_YD_ESP32_S3
+#include <FastLED.h>
 #endif
 
 // Defines the WiFi access point this device should connected to.
@@ -36,6 +38,8 @@ private:
     AsyncWebServer _server;
 #if MCU_BOARD_TYPE == MCU_TINYPICO
     TinyPICO _tinyPICO;
+#elif MCU_BOARD_TYPE == MCU_YD_ESP32_S3
+    CRGB _led;
 #endif
     uint32_t _loopCounter;
     uint32_t _rootPageViewCount;

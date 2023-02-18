@@ -67,6 +67,7 @@
 // set the AIR_QUALITY_SENSOR_UPDATE_SECONDS value to at least 5.
 #define MCU_TINYPICO 1
 #define MCU_EZSBC_IOT 2
+#define MCU_YD_ESP32_S3 3
 #ifndef MCU_BOARD_TYPE
 #define MCU_BOARD_TYPE MCU_TINYPICO
 #endif

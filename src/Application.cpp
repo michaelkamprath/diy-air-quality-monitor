@@ -60,6 +60,9 @@ Application::Application()
     _latestHumidity(UNSET_ENVIRONMENT_VALUE),
     _config()
 {
+#if MCU_BOARD_TYPE == MCU_YD_ESP32_S3
+  Wire.begin(17,18);
+#endif
 }
 
 Application::~Application()
@@ -414,6 +417,10 @@ void Application::setupLED(void)
   ledcWrite(1, 0);
   ledcWrite(2, 0);
   ledcWrite(3, 0);
+#elif MCU_BOARD_TYPE == MCU_YD_ESP32_S3
+  FastLED.addLeds<NEOPIXEL, 48>(&_led, 1);
+  _led = CRGB::Black;
+  FastLED.show();
 #endif
 }
 
@@ -542,6 +549,12 @@ void Application::setLEDColorForAQI(float aqi_value)
   ledcWrite(1, CALC_LED_DUTY_CYCLE(red));
   ledcWrite(2, CALC_LED_DUTY_CYCLE(green));
   ledcWrite(3, CALC_LED_DUTY_CYCLE(blue));
+#elif MCU_BOARD_TYPE == MCU_YD_ESP32_S3
+  _led.r = red*this->_config.getLEDBrightnessValue()/255;
+  _led.g = green*this->_config.getLEDBrightnessValue()/255;
+  _led.b = blue*this->_config.getLEDBrightnessValue()/255;
+
+  FastLED.show();
 #endif
 }
 

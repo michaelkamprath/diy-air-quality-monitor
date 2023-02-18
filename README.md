@@ -20,6 +20,7 @@ To build this project, you will need the folloing components:
 * ESP32 Microcontroller Board - This code is written to support various ESP32 microntorller development boards:
   * [TinyPICO ESP32 Microcontroller Board](https://www.tinypico.com/) - The TinyPICO is very versatile, has a good WiFi antenna, has PSRAM already installed (which this project uses), and the form factor can't be beat. The TinyPICO is the preferred ESP32 board for this project.
   * [EzSBC ESP32 Development Board](https://www.ezsbc.com/product/esp32-breakout-and-development-board/) - Another fine ESP32 development board. However, this EzSBC board does not come with PSRAM installed, which limits the historical data that can be retained by the microcontroller.
+  * [YD-ESP32-S3](https://www.aliexpress.us/item/3256804451136917.html) - This is a off brand ESP32-S3 development board you can get off AliExpress. Fair cheap, but fairly powerful. To use the onboard WS2812B RGB LED, you need to bridge the `RGB` solder gap. If you want to power the `SN-GCJA5` sensor with the 5V USB power on the board, you also need to bridge the `IN-OUT` solder gap.
 * *OPTIONAL* [Dupont Cable Housing](https://www.ebay.com/itm/100Pcs-1P-Dupont-Jumper-Wire-Cable-Housing-Female-Pin-Connector-2-54-mm-Pitch/112299848779) - My prefered way of connectng the sensor to the ESP32 development board is to use female dupont connectors to the pins that get soldered to the ESP32 development board. Here are the housings to make those connectors on the other end of the cable you need to build to connect the SN-GCJA5. Alternatively, you can solder the cable wires directly to the ESP32 development board pin holes.
 * *OPTIONAL* [Female Pin Dupont Connector](https://www.ebay.com/itm/US-Stock-100pcs-Female-Pin-Dupont-Connector-Gold-Plated-2-54mm-Pitch/371912445248) - My prefered way of connectng the sensor to the ESP32 development board is to use female dupont connectors to the pins that get soldered to the ESP32 development board. Here are the female connectors needed to make the connectors.
 * *OPTIONAL* [BME680 Environment Sensor Board](https://www.digikey.com/products/en?mpart=3660&v=1528) - You can optionally attach a BME680 sensor to this project to additionally get temperature, pressure, and humidity measurements along with the air quality measurement that the SN-GCJA5 provides. Note that you will need some 26 to 30 AWG hook up wire to construct the cables needed to connect the BME680 to to the ESP32 development board, but you can use on either end of those cables the dupont connectors that you are ordering SN-GCJA5.
@@ -30,19 +31,19 @@ Refer to your ESP32 development board's pinout to determine the exact location o
 ### Panasonic SN-GCJA5
 This code's default confuration for the serial `RX` pin that will be used to recieve data form the air quality sensor is listed below. Note the the `RX` can be configured in the `platformio.ini` file byt setting the `SERIAL_RX_PIN` build flag for the device configuration you are using.
 
-| ESP32 `RX` Pin | Sesnor Pin | Description |
+| ESP32 Pin | ESP32-S3 Pin | Sesnor Pin | Description |
 |:-:|:-:|:--|
-| `5V` | 5 | The Panasonic SN-GCJA5 uses 5V power. On most ESP32 boards this is marked as either `5V` or `Vusb`. |
-| `GND` |  4 | Ground |
-| `IO33` |  1 | The Panasonic SN-GCJA5 serial TX line (so RX on the ESP32). Note that this serial line operates at 3.3V, so it is voltage safe for the ESP32 |,
+| `5V` | `5V` | 5 | The Panasonic SN-GCJA5 uses 5V power. On most ESP32 boards this is marked as either `5V` or `Vusb`. |
+| `GND` | `GND` |  4 | Ground |
+| `IO33` | `IO2` |  1 | The Panasonic SN-GCJA5 serial TX line (so RX on the ESP32). Note that this serial line operates at 3.3V, so it is voltage safe for the ESP32 |,
 
 ### BME680 Environment Sensor Board
-| ESP32 Pin | Sesnor Pin | Description |
-|:-:|:-:|:--|
-| `3v3` |  `Vcc` | The BME680 runs off of 3.3V. |
-| `GND` |  `GND` | Ground |
-| `IO22` |  `SCL` | The I2C clock line |
-| `IO21` | `SDA` | The I2C data line |
+| ESP32 Pin | ESP32-S3 Pin | Sesnor Pin | Description |
+|:-:|:-:|:-:|:--|
+| `3v3` | `3v3` |  `Vcc` | The BME680 runs off of 3.3V. |
+| `GND` | `GND` |  `GND` | Ground |
+| `IO22` | `IO18` |  `SCL` | The I2C clock line |
+| `IO21`| `IO17` | `SDA` | The I2C data line |
 
 # Usage
 The included software for the ESP32 development board launches a web server that hosts a few pages which allow interaction with the air quality monitor. About a minute after the device connects to the configured WiFi (this is required for the Panasonic SN-GCJA5 start up sequence), the webserver will be come active and you may visit the pages at the IP address assigned by the DHCP server of your WiFi service. It is recomended (though not required) that you implement a static IP address for your ESP32 development board in your DHCP server's configuration.
@@ -53,16 +54,16 @@ Yu can view the air quality measurement by visiting the root web page of your ES
 ## Configuration
 A configuration page exists that allows you to alter some of the air quality monitor's behavior. This page is availabe at `http://your.device.ip/config.html`. The following configuration options are  available:
 
-* **Enable posting JSON telemetry** - Enables the [JSON Push][#json-push] of teletry.
-* **JSON telementry server URL** - The URL endpoint that JSON-packaged telemetry data should be pushed to.
-* **Sensor name** - The name for this monitor. Allows the source of teletry to be identified for either the JSON Push or Grafana telemetry collection methods.
+* **Enable posting JSON telemetry** - Enables the [JSON Push](#json-push) of teletry.
+* **JSON telementry server URL** - The URL endpoint that JSON-packaged telemetry data should be POSTed to.
+* **Sensor name** - The name for this monitor. Allows the source of teletry to be identified for either the JSON POST or GET telemetry collection methods.
 * **Upload rate** - The minimum number of seconds in between telemetry transmission for the JSON Push method.
 * **LED Brightness** - Allows adjusting the brightness of the air quality indicator LED on the ESP32 development board.
 
 ## Data Collection
 
 ### JSON Push
-This code has the option to push all of the granular and detailed data collected from the connected sensors to a data collection service in a JSON format for later analysis. This is done by editing the JSON Telemetry options in the configuration web page hosted by the ESP32 development board. A recommended data collection service is the [Simple JSON Collector Service](https://github.com/michaelkamprath/simple-json-collector-service).
+This code has the option to POST all of the granular and detailed data collected from the connected sensors to a data collection service in a JSON format for later analysis. This is done by editing the JSON Telemetry options in the configuration web page hosted by the ESP32 development board. A recommended data collection service is the [Simple JSON Collector Service](https://github.com/michaelkamprath/simple-json-collector-service).
 
 Note that this setting can be edited live on the device by visting the `http://your.device.ip/config.html` web paged served by the ESP32 device.
 
