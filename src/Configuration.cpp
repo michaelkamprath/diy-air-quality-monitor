@@ -2,7 +2,7 @@
 #include "Configuration.h"
 
 
-const uint32_t EEPROM_SIGNATURE = 0xC0DEB003;
+const uint32_t EEPROM_SIGNATURE = 0xC0DEB005;
 #define EEPROM_SIGNATURE_SIZE sizeof(uint32_t)
 #define EEPROM_SIGNATURE_INDEX 0
 
@@ -21,6 +21,12 @@ const uint32_t EEPROM_SIGNATURE = 0xC0DEB003;
 #define LED_BRIGHTNESS_SIZE sizeof(uint8_t)
 #define LED_BRIGHTNESS_INDEX (UPLOAD_RATE_INDEX+UPLOAD_RATE_SIZE)
 
+#define WIFI_SSID_SIZE sizeof(char)*129
+#define WIFI_SSID_INDEX (LED_BRIGHTNESS_INDEX+LED_BRIGHTNESS_SIZE)
+
+#define WIFI_PASSWORD_SIZE sizeof(char)*129
+#define WIFI_PASSWORD_INDEX (WIFI_SSID_INDEX+WIFI_SSID_SIZE)
+
 #define EEPROM_SIZE ( \
                         EEPROM_SIGNATURE_SIZE \
                         + UPLOAD_ENABLE_SIZE \
@@ -28,6 +34,8 @@ const uint32_t EEPROM_SIGNATURE = 0xC0DEB003;
                         + UPLOAD_URL_SIZE \
                         + UPLOAD_RATE_SIZE \
                         + LED_BRIGHTNESS_SIZE \
+                        + WIFI_SSID_SIZE \
+                        + WIFI_PASSWORD_SIZE \
                     )
 
 Configuration::Configuration()
@@ -64,6 +72,10 @@ Configuration::Configuration()
         buffer[0] = STATUS_LED_BRIGHTNESS;
         EEPROM.writeBytes(LED_BRIGHTNESS_INDEX, buffer, LED_BRIGHTNESS_SIZE);
 
+        memset(buffer,0,EEPROM_SIZE+1);
+        EEPROM.writeBytes(WIFI_SSID_INDEX, buffer, WIFI_SSID_SIZE);
+        EEPROM.writeBytes(WIFI_PASSWORD_INDEX, buffer, WIFI_PASSWORD_SIZE);
+
         EEPROM.commit();
     }
 
@@ -79,7 +91,13 @@ Configuration::Configuration()
     EEPROM.readBytes(UPLOAD_RATE_INDEX, &this->_upload_rate, UPLOAD_RATE_SIZE);
     EEPROM.readBytes(LED_BRIGHTNESS_INDEX, &this->_led_brightness, LED_BRIGHTNESS_SIZE);
 
+    EEPROM.readBytes(WIFI_SSID_INDEX, buffer, WIFI_SSID_SIZE);
+    this->_wifiSSID = String(buffer);
+    EEPROM.readBytes(WIFI_PASSWORD_INDEX, buffer, WIFI_PASSWORD_SIZE);
+    this->_wifiPW = String(buffer);
+
     Serial.println(F("Initial configuration:"));
+    Serial.printf("  WiFi SSID = %s\n", this->_wifiSSID.c_str());
     Serial.printf("  JSON Upload enabled = %d\n", this->_json_upload_enabled);
     Serial.printf("  JSON Upload URL = %s\n", this->_server_url.c_str());
     Serial.printf("  JSON Upload rate = %d seconds\n", this->_upload_rate);
@@ -171,4 +189,30 @@ void Configuration::setLEDBrightnessIndex(uint8_t index)
     this->_led_brightness = (index < 4 ? index : 2);
     EEPROM.writeBytes(LED_BRIGHTNESS_INDEX, &this->_led_brightness, LED_BRIGHTNESS_SIZE);
     EEPROM.commit();
+}
+
+const String& Configuration::getWifiSSID(void) const {
+    return this->_wifiSSID;
+}
+
+void Configuration::setWiFiSSID(const String& ssid) {
+    if (ssid.length() < WIFI_SSID_SIZE-2) {
+        this->_wifiSSID = ssid;
+        EEPROM.writeBytes(WIFI_SSID_INDEX, this->_wifiSSID.c_str(), this->_wifiSSID.length()+1);
+        EEPROM.commit();
+    }
+}
+
+const String& Configuration::getWifiPassword(void) const
+{
+    return this->_wifiPW;
+}
+
+void Configuration::setWiFiPassword(const String& password)
+{
+    if (password.length() < WIFI_PASSWORD_SIZE-2) {
+        this->_wifiPW = password;
+        EEPROM.writeBytes(WIFI_PASSWORD_INDEX, this->_wifiPW.c_str(), this->_wifiPW.length()+1);
+        EEPROM.commit();
+    }
 }

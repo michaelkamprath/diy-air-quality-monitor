@@ -4,6 +4,7 @@
 #include <AsyncTCP.h>
 #include <ArduinoJson.h>
 #include <ESPAsyncWebServer.h>
+#include <DNSServer.h>
 #include <AirQualitySensor.h>
 #include <Adafruit_BME680.h>
 #include "Configuration.h"
@@ -12,16 +13,6 @@
 #include <TinyPICO.h>
 #elif MCU_BOARD_TYPE == MCU_YD_ESP32_S3
 #include <FastLED.h>
-#endif
-
-// Defines the WiFi access point this device should connected to.
-// These values should be edited in the platformio.ini file.
-#ifndef WIFI_SSID
-#define WIFI_SSID        "YOUR_WIFI_SSID"
-#endif
-
-#ifndef WIFI_PASSWORD
-#define WIFI_PASSWORD    "YOUR_WIFI_PASSWORD"
 #endif
 
 class Application {
@@ -50,15 +41,18 @@ private:
     float _latestHumidity;
 
     Configuration _config;
+    DNSServer _dnsServer;
+    bool _wifiCaptivePortalMode;
+    bool _resetDeviceForNewWifi;
 
     void printLocalTime(void);
     void setupWebserver(void);
-
+    void setupWebserverFoCapturePortal(void);
+    void connectWifi(void);
     void setupLED(void);
     void setLEDColorForAQI(float aqi_value);
 
     // web handlers
-    String getContentType(String filename);
     String processStatsPageHTML(const String& var);
     String processConfigPageHTML(const String& var);
 
@@ -70,6 +64,10 @@ private:
     void handSubmitConfigRequest(AsyncWebServerRequest *request);
     void handleJsonRequest(AsyncWebServerRequest *request);
     void handleUnassignedPath(AsyncWebServerRequest *request);
+
+    void handleHotspotDectect(AsyncWebServerRequest *request);
+    void handleSetWifiInfo(AsyncWebServerRequest *request);
+
 public:
     static Application* getInstance(void);
 

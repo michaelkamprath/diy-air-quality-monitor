@@ -81,6 +81,8 @@ private:
     String _sensor_name;
     uint16_t _upload_rate;
     uint8_t _led_brightness;
+    String _wifiSSID;
+    String _wifiPW;
 
 public:
     Configuration();
@@ -101,7 +103,12 @@ public:
     uint8_t getLEDBrightnessValue(void) const;
     uint8_t getLEDBrightnessIndex(void) const;
     void setLEDBrightnessIndex(uint8_t index);
-};
 
+    const String& getWifiSSID(void) const;
+    void setWiFiSSID(const String& ssid);
+
+    const String& getWifiPassword(void) const;
+    void setWiFiPassword(const String& ssid);
+};
 
 #endif // __Configuration__

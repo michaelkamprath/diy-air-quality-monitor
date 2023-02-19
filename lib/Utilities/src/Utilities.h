@@ -14,4 +14,8 @@ void print_buffer( const uint8_t* buffer, uint8_t size);
 float calculatePartialOrderedAverage( const Vector<uint16_t>& data, size_t start_idx, size_t number_of_values );
 
 String convertEpochToString(time_t epoch_time);
+
+// returns the HTTP content type based on filename extension
+String getContentType(String filename);
+
 #endif // __Utilities__

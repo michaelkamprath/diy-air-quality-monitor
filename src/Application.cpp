@@ -1,10 +1,12 @@
 #include <Arduino.h>
 #include <HTTPClient.h>
+#include <AsyncTCP.h>
 #include <ArduinoJson.h>
 #include <Wire.h>
 #include "time.h"
 #include "Application.h"
 #include "Utilities.h"
+#include "CaptiveRequestHandler.h"
 
 #ifndef USE_LittleFS
 #define USE_LittleFS 1
@@ -58,7 +60,9 @@ Application::Application()
     _latestTemperature(UNSET_ENVIRONMENT_VALUE),
     _latestPressure(UNSET_ENVIRONMENT_VALUE),
     _latestHumidity(UNSET_ENVIRONMENT_VALUE),
-    _config()
+    _config(),
+    _wifiCaptivePortalMode(false),
+    _resetDeviceForNewWifi(false)
 {
 #if MCU_BOARD_TYPE == MCU_YD_ESP32_S3
   Wire.begin(17,18);
@@ -70,21 +74,14 @@ Application::~Application()
 
 }
 
-void Application::setup(void)
+void Application::connectWifi(void)
 {
-  // Initialize SPIFFS
-  if(!SPIFFS.begin(true)){
-    Serial.println("ERROR: Could not mount SPIFFs");
-    return;
-  }
-  setupLED();
-
-  // start the WiFi
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print(F("Starting Wifi connection to SSID = "));
-    Serial.print(String(WIFI_SSID));
+    Serial.print(this->_config.getWifiSSID());
     Serial.print(F(" "));
-    WiFi.begin(String(WIFI_SSID).c_str(), String(WIFI_PASSWORD).c_str());
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(this->_config.getWifiSSID().c_str(), this->_config.getWifiPassword().c_str());
     int counter = 0;
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
@@ -106,6 +103,31 @@ void Application::setup(void)
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   printLocalTime();
   time(&_boot_time);
+}
+void Application::setup(void)
+{
+  // Initialize SPIFFS
+  if(!SPIFFS.begin(true)){
+    Serial.println("ERROR: Could not mount SPIFFs");
+    return;
+  }
+  setupLED();
+
+  // start the WiFi
+  if (this->_config.getWifiSSID().length() == 0) {
+    // There is no wifi set up. Initiate the captive portal
+    Serial.println(F("No SSID saved for WiFi. Starting captive portal ..."));
+    WiFi.mode(WIFI_AP);
+    WiFi.softAP("esp-captive");
+    delay(1000);
+    Serial.print("AP IP address: ");
+    Serial.println(WiFi.softAPIP());
+    this->_dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+    this->_dnsServer.start(53, "*", WiFi.softAPIP());
+    this->_wifiCaptivePortalMode = true;
+  } else {
+    this->connectWifi();
+  }
 
   if (!_bme680.begin(BME680_SENSOR_I2C_ADDRESS)) {
     Serial.println(F("NOTE - Could not find BME680 sensor. Will not create additional environment readings."));
@@ -120,9 +142,14 @@ void Application::setup(void)
   }
 
   // start the sensor
-  _sensor.begin();
+  if (this->_wifiCaptivePortalMode) {
+    setupWebserverFoCapturePortal();
+  } else {
+    _sensor.begin();
+    setupWebserver();
+  }
 
-  setupWebserver();
+
 
   _appSetup = true;
 }
@@ -145,8 +172,18 @@ void Application::printLocalTime(void)
   Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
 }
 
+void Application::setupWebserverFoCapturePortal(void)
+{
+  _server.reset();
+  _server.on("/", HTTP_GET, std::bind(&Application::handleHotspotDectect, this, std::placeholders::_1));
+  _server.on("/wifi_info", HTTP_GET, std::bind(&Application::handleSetWifiInfo, this, std::placeholders::_1));
+  _server.addHandler(new CaptiveRequestHandler()).setFilter(ON_AP_FILTER);//only when requested from AP
+  _server.begin();
+}
+
 void Application::setupWebserver(void)
 {
+  _server.reset();
   _server.on("/", HTTP_GET, std::bind(&Application::handleRootPageRequest, this, std::placeholders::_1));
   _server.on("/index.html", HTTP_GET, std::bind(&Application::handleRootPageRequest, this, std::placeholders::_1));
   _server.on("/stats", HTTP_GET, std::bind(&Application::handleStatsPageRequest, this, std::placeholders::_1));
@@ -160,21 +197,47 @@ void Application::setupWebserver(void)
   _server.begin();
 }
 
-String Application::getContentType(String filename)
+
+void Application::handleHotspotDectect(AsyncWebServerRequest *request)
 {
-  if(filename.endsWith(".htm")) return "text/html";
-  else if(filename.endsWith(".html")) return "text/html";
-  else if(filename.endsWith(".css")) return "text/css";
-  else if(filename.endsWith(".js")) return "application/javascript";
-  else if(filename.endsWith(".png")) return "image/png";
-  else if(filename.endsWith(".gif")) return "image/gif";
-  else if(filename.endsWith(".jpg")) return "image/jpeg";
-  else if(filename.endsWith(".ico")) return "image/x-icon";
-  else if(filename.endsWith(".xml")) return "text/xml";
-  else if(filename.endsWith(".pdf")) return "application/x-pdf";
-  else if(filename.endsWith(".zip")) return "application/x-zip";
-  else if(filename.endsWith(".gz")) return "application/x-gzip";
-  return "text/plain";
+    String cp_file = "/captive_portal.html";
+    Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
+    request->send(SPIFFS, cp_file, getContentType(cp_file));
+}
+
+
+void Application::handleSetWifiInfo(AsyncWebServerRequest *request)
+{
+  Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
+
+  bool wifi_setup = false;
+
+  if (request->hasParam("ssid")) {
+    String ssid = request->getParam("ssid")->value();
+    this->_config.setWiFiSSID(ssid);
+    Serial.printf(
+      "  WiFi SSID set to: %s\n",
+      this->_config.getWifiSSID().c_str()
+    );
+    wifi_setup = (this->_config.getWifiSSID().length() > 0);
+  }
+
+  if (request->hasParam("pw")) {
+    String password = request->getParam("pw")->value();
+    this->_config.setWiFiPassword(password);
+    Serial.printf(
+      "  WiFi password set to: %s\n",
+      this->_config.getWifiPassword().c_str()
+    );
+  }
+
+  if (wifi_setup) {
+    Serial.println("WiFi connection informaiton has been set.");
+    request->redirect("/wifi_setup.html");
+    this->_resetDeviceForNewWifi = true;
+  } else {
+    request->redirect("/hotspot-detect.html");
+  }
 }
 
 void Application::handleUnassignedPath(AsyncWebServerRequest *request)
@@ -303,7 +366,7 @@ String Application::processStatsPageHTML(const String& var)
   if (var == "PERCENT") {
     return String("%");
   } else if (var == "WIFISSID") {
-    return String(WIFI_SSID);
+    return this->_config.getWifiSSID();
   } else if (var == "IPADDRESS") {
     return WiFi.localIP().toString();
   } else if (var == "BOOTTIME") {
@@ -560,6 +623,21 @@ void Application::setLEDColorForAQI(float aqi_value)
 
 void Application::loop(void)
 {
+
+  if (this->_resetDeviceForNewWifi) {
+    WiFi.disconnect();
+    this->connectWifi();
+    this->_sensor.begin();
+    setupWebserver();
+    this->_resetDeviceForNewWifi = false;
+    this->_wifiCaptivePortalMode = false;
+  }
+
+  if (this->_wifiCaptivePortalMode) {
+    this->_dnsServer.processNextRequest();
+    return;
+  }
+
   // slow down loop calls for the sensor
   _loopCounter++;
   if (_loopCounter%1000 != 0) {
