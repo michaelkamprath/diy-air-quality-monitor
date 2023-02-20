@@ -42,12 +42,13 @@ private:
 
     Configuration _config;
     DNSServer _dnsServer;
+    IPAddress _captivePortalIP;
     bool _wifiCaptivePortalMode;
     bool _resetDeviceForNewWifi;
 
     void printLocalTime(void);
     void setupWebserver(void);
-    void setupWebserverFoCapturePortal(void);
+    void setupWebserverForCapturePortal(void);
     void connectWifi(void);
     void setupLED(void);
     void setLEDColorForAQI(float aqi_value);
@@ -60,14 +61,11 @@ private:
     void handleRootPageRequest(AsyncWebServerRequest *request);
     void getJsonPayload(DynamicJsonDocument &doc) const;
     void handleStatsPageRequest(AsyncWebServerRequest *request);
-    void handleConfigPageRequest(AsyncWebServerRequest *request);
     void handSubmitConfigRequest(AsyncWebServerRequest *request);
     void handleJsonRequest(AsyncWebServerRequest *request);
-    void handleUnassignedPath(AsyncWebServerRequest *request);
 
     void handleHotspotDectect(AsyncWebServerRequest *request);
     void handleSetWifiInfo(AsyncWebServerRequest *request);
-
 public:
     static Application* getInstance(void);
 
@@ -78,6 +76,12 @@ public:
 
     AirQualitySensor& sensor(void)          { return _sensor; }
     AsyncWebServer& server(void)            { return _server; }
+
+
+    void handleConfigPageRequest(AsyncWebServerRequest *request);
+    void handleUnassignedPath(AsyncWebServerRequest *request);
+    const IPAddress& captivePortalIP(void) const        { return this->_captivePortalIP; }
+
 };
 
 

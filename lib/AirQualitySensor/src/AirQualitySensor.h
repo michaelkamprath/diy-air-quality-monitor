@@ -31,16 +31,19 @@ private:
     float   _avgPM2p5_10Min;
     float   _avgPM2p5_1Hour;
     float   _avgPM2p5_24Hour;
-  
+
     uint16_t*           _vectorStorage;
     Vector<uint16_t>    _pm2p5_history;
     size_t              _pm2p5_history_insertion_idx;
+
+    bool    _initialized;
 public:
     AirQualitySensor(uint32_t sensor_refresh_seconds);
     virtual ~AirQualitySensor();
 
     void begin(void);
     size_t getHistoryCount(void) const        { return _pm2p5_history.size(); }
+    bool isInitialized(void) const            { return _initialized; }
 
     // returns true if new data was fetched
     bool updateSensorReading(void);

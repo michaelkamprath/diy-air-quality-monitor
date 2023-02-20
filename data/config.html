@@ -8,41 +8,60 @@
   <body>
     <div id="content" class="content">
       <div class="title">DIY Air Quality Monitor Configuration</div>
-      <div class="config-frame">
         <form action="/update" method="get" class="config-form">
-            <div class="form-item"><div class="flex-row">
-              <div class="item-label">Enable posting JSON telemetry: </div>
-              <div class="input-box">
-                <label class="switch" for="checkbox">
-                  <input type="checkbox" id="checkbox" name="enable-json" ^ENABLE_CHECKED^>
-                  <div class="slider round"></div>
-                </label>
-              </div></div>
+          <div class="config-frame">
+            <div class="form-item">
+              WiFi SSID: </br>
+              <input type="text" name="wifi-ssid" maxlength=32 value="^WIFI_SSID^">
+            </div>
+            <div class="form-item" style="margin-bottom: 0px;">
+              WiFi Password:</br>
+              <input type="password" name="wifi-password" maxlength=64 value="^WIFI_PASSWORD^">
+            </div>
+          </div>
+          <div class="config-frame">
+            <div class="form-item">
+              <div class="flex-row">
+                <div class="item-label">Enable posting JSON telemetry: </div>
+                <div class="input-box">
+                  <label class="switch" for="checkbox">
+                    <input type="checkbox" id="checkbox" name="enable-json" ^ENABLE_CHECKED^>
+                    <div class="slider round"></div>
+                  </label>
+                </div>
+              </div>
             </div>
             <div class="form-item">
+              <div class="flex-row">
+                <div class="item-label">Upload rate (seconds): </div>
+                <div class="input-box">
+                  <input type="number" inputmode="numeric" pattern="[0-9]*" step="5" max="3600" min="5" value="^UPLOADRATE^" id="upload-rate" name="upload-rate">
+                </div>
+              </div>
+            </div>
+            <div class="form-item" style="margin-bottom: 0px;">
               JSON telementry server URL: </br>
               <input type="text" name="server-url" value="^SERVER_URL^">
             </div>
+          </div>
+          <div class="config-frame">
             <div class="form-item">
               Sensor name:</br>
               <input type="text" name="sensor-name" value="^SENSOR_NAME^">
             </div>
-            <div class="form-item"><div class="flex-row">
-              <div class="item-label">Upload rate (seconds): </div>
-              <div class="input-box">
-                <input type="number" inputmode="numeric" pattern="[0-9]*" step="5" max="3600" min="5" value="^UPLOADRATE^" id="upload-rate" name="upload-rate">
-              </div></div>
+            <div class="form-item" style="margin-bottom: 0px;">
+              <div class="flex-row">
+                <div class="item-label">LED Brightness: </div>
+                <select id="led-brightness" name="led-brightness">
+                  <option value="0" ^LED_OFF^>Off</option>
+                  <option value="1" ^LED_LOW^>Low</option>
+                  <option value="2" ^LED_MED^>Medium</option>
+                  <option value="3" ^LED_HI^>High</option>
+                </select>
+              </div>
             </div>
-            <div class="form-item"><div class="flex-row">
-              <div class="item-label">LED Brightness: </div>
-              <select id="led-brightness" name="led-brightness">
-                <option value="0" ^LED_OFF^>Off</option>
-                <option value="1" ^LED_LOW^>Low</option>
-                <option value="2" ^LED_MED^>Medium</option>
-                <option value="3" ^LED_HI^>High</option>
-              </select>
-            </div></div>
-            <div class="submit-button"><input type="submit" value="Submit"></div>
+          </div>
+          <div class="submit-button"><input type="submit" value="Submit"></div>
         </form>
       </div>
       <div class="navigation">

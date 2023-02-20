@@ -2,7 +2,7 @@
 #include "Configuration.h"
 
 
-const uint32_t EEPROM_SIGNATURE = 0xC0DEB005;
+const uint32_t EEPROM_SIGNATURE = 0xC0DEB006;
 #define EEPROM_SIGNATURE_SIZE sizeof(uint32_t)
 #define EEPROM_SIGNATURE_INDEX 0
 
@@ -21,10 +21,10 @@ const uint32_t EEPROM_SIGNATURE = 0xC0DEB005;
 #define LED_BRIGHTNESS_SIZE sizeof(uint8_t)
 #define LED_BRIGHTNESS_INDEX (UPLOAD_RATE_INDEX+UPLOAD_RATE_SIZE)
 
-#define WIFI_SSID_SIZE sizeof(char)*129
+#define WIFI_SSID_SIZE sizeof(char)*33      // max SSID length is 32 + 1 for terminating null
 #define WIFI_SSID_INDEX (LED_BRIGHTNESS_INDEX+LED_BRIGHTNESS_SIZE)
 
-#define WIFI_PASSWORD_SIZE sizeof(char)*129
+#define WIFI_PASSWORD_SIZE sizeof(char)*65
 #define WIFI_PASSWORD_INDEX (WIFI_SSID_INDEX+WIFI_SSID_SIZE)
 
 #define EEPROM_SIZE ( \

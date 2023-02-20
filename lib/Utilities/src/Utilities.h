@@ -18,4 +18,6 @@ String convertEpochToString(time_t epoch_time);
 // returns the HTTP content type based on filename extension
 String getContentType(String filename);
 
+String toStringIp(IPAddress ip);
+
 #endif // __Utilities__

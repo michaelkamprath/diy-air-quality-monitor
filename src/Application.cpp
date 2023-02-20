@@ -6,7 +6,6 @@
 #include "time.h"
 #include "Application.h"
 #include "Utilities.h"
-#include "CaptiveRequestHandler.h"
 
 #ifndef USE_LittleFS
 #define USE_LittleFS 1
@@ -61,6 +60,7 @@ Application::Application()
     _latestPressure(UNSET_ENVIRONMENT_VALUE),
     _latestHumidity(UNSET_ENVIRONMENT_VALUE),
     _config(),
+    _captivePortalIP(10, 1, 1, 1),
     _wifiCaptivePortalMode(false),
     _resetDeviceForNewWifi(false)
 {
@@ -76,10 +76,13 @@ Application::~Application()
 
 void Application::connectWifi(void)
 {
+  WiFi.disconnect();
   while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(F("Starting Wifi connection to SSID = "));
-    Serial.print(this->_config.getWifiSSID());
-    Serial.print(F(" "));
+    Serial.printf(
+      "Starting Wifi connection to SSID = %s, password = %s\n",
+      this->_config.getWifiSSID().c_str(),
+      this->_config.getWifiPassword().c_str()
+    );
     WiFi.mode(WIFI_STA);
     WiFi.begin(this->_config.getWifiSSID().c_str(), this->_config.getWifiPassword().c_str());
     int counter = 0;
@@ -117,9 +120,13 @@ void Application::setup(void)
   if (this->_config.getWifiSSID().length() == 0) {
     // There is no wifi set up. Initiate the captive portal
     Serial.println(F("No SSID saved for WiFi. Starting captive portal ..."));
+    // WiFi.mode(WIFI_OFF);
     WiFi.mode(WIFI_AP);
-    WiFi.softAP("esp-captive");
-    delay(1000);
+    WiFi.softAPConfig(
+      this->captivePortalIP(), this->captivePortalIP(),
+      IPAddress(255, 255, 255, 0)
+    );
+    WiFi.softAP("DIY Air Quality Sensor");
     Serial.print("AP IP address: ");
     Serial.println(WiFi.softAPIP());
     this->_dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
@@ -143,7 +150,7 @@ void Application::setup(void)
 
   // start the sensor
   if (this->_wifiCaptivePortalMode) {
-    setupWebserverFoCapturePortal();
+    setupWebserverForCapturePortal();
   } else {
     _sensor.begin();
     setupWebserver();
@@ -172,12 +179,15 @@ void Application::printLocalTime(void)
   Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
 }
 
-void Application::setupWebserverFoCapturePortal(void)
+void Application::setupWebserverForCapturePortal(void)
 {
   _server.reset();
   _server.on("/", HTTP_GET, std::bind(&Application::handleHotspotDectect, this, std::placeholders::_1));
-  _server.on("/wifi_info", HTTP_GET, std::bind(&Application::handleSetWifiInfo, this, std::placeholders::_1));
-  _server.addHandler(new CaptiveRequestHandler()).setFilter(ON_AP_FILTER);//only when requested from AP
+  _server.on("/hotspot-detect.html", HTTP_GET, std::bind(&Application::handleHotspotDectect, this, std::placeholders::_1));
+  _server.on("/generate_204", HTTP_GET, std::bind(&Application::handleHotspotDectect, this, std::placeholders::_1));
+  _server.on("/config.html", HTTP_GET, std::bind(&Application::handleConfigPageRequest, this, std::placeholders::_1));
+  _server.on("/update", HTTP_GET, std::bind(&Application::handSubmitConfigRequest, this, std::placeholders::_1));
+  _server.onNotFound(std::bind(&Application::handleUnassignedPath, this, std::placeholders::_1));
   _server.begin();
 }
 
@@ -200,45 +210,23 @@ void Application::setupWebserver(void)
 
 void Application::handleHotspotDectect(AsyncWebServerRequest *request)
 {
-    String cp_file = "/captive_portal.html";
-    Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-    request->send(SPIFFS, cp_file, getContentType(cp_file));
+    Serial.printf("Hotspot WEB: %s - %s - %s\n", request->client()->remoteIP().toString().c_str(), request->host().c_str(), request->url().c_str());
+    String apIPStr = toStringIp( Application::getInstance()->captivePortalIP());
+    if (request->host().equals(apIPStr)) {
+      this->handleConfigPageRequest(request);
+    } else {
+      // need to send a 200 response quickly so captive portal shows. Use an HTML redirect
+      // to bring the user to config page.
+      request->send(200, "text/html",
+        ""
+        "<!DOCTYPE html><html><head>"
+        "<title>DIY Air Quality Sensor Config</title>"
+        "<meta http-equiv=\"Refresh\" content=\"0; url='http://10.1.1.1/config.html'\" />"
+        "</head><body></body></html>"
+      );
+    }
 }
 
-
-void Application::handleSetWifiInfo(AsyncWebServerRequest *request)
-{
-  Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-
-  bool wifi_setup = false;
-
-  if (request->hasParam("ssid")) {
-    String ssid = request->getParam("ssid")->value();
-    this->_config.setWiFiSSID(ssid);
-    Serial.printf(
-      "  WiFi SSID set to: %s\n",
-      this->_config.getWifiSSID().c_str()
-    );
-    wifi_setup = (this->_config.getWifiSSID().length() > 0);
-  }
-
-  if (request->hasParam("pw")) {
-    String password = request->getParam("pw")->value();
-    this->_config.setWiFiPassword(password);
-    Serial.printf(
-      "  WiFi password set to: %s\n",
-      this->_config.getWifiPassword().c_str()
-    );
-  }
-
-  if (wifi_setup) {
-    Serial.println("WiFi connection informaiton has been set.");
-    request->redirect("/wifi_setup.html");
-    this->_resetDeviceForNewWifi = true;
-  } else {
-    request->redirect("/hotspot-detect.html");
-  }
-}
 
 void Application::handleUnassignedPath(AsyncWebServerRequest *request)
 {
@@ -247,7 +235,7 @@ void Application::handleUnassignedPath(AsyncWebServerRequest *request)
 
   // check to see if the URL is in the SPIFFS
   if (SPIFFS.exists(path)) {
-    Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), path.c_str());
+    Serial.printf("Unassigned WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), path.c_str());
     request->send(SPIFFS, path, getContentType(path));
     return;
   }
@@ -275,15 +263,17 @@ void Application::handleStatsPageRequest(AsyncWebServerRequest *request)
 void Application::handleConfigPageRequest(AsyncWebServerRequest *request)
 {
   String config_file = "/config.html";
-  Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-  request->send(
+  Serial.printf("Config WEB: %s - %s - %s\n", request->client()->remoteIP().toString().c_str(), request->host().c_str(), request->url().c_str());
+  AsyncWebServerResponse* response = request->beginResponse(
     SPIFFS,
     config_file,
     getContentType(config_file),
     false,
     std::bind(&Application::processConfigPageHTML, this, std::placeholders::_1)
   );
+  request->send(response);
 }
+
 
 void Application::handleJsonRequest(AsyncWebServerRequest *request)
 {
@@ -299,7 +289,7 @@ void Application::handleJsonRequest(AsyncWebServerRequest *request)
 
 void Application::handSubmitConfigRequest(AsyncWebServerRequest *request)
 {
-  Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
+  Serial.printf("WEB: %s - %s - %s\n", request->client()->remoteIP().toString().c_str(), request->host().c_str(), request->url().c_str());
 
   // GET input1 value on <ESP_IP>/get?input1=<inputMessage>
   if (request->hasParam("enable-json")) {
@@ -357,6 +347,34 @@ void Application::handSubmitConfigRequest(AsyncWebServerRequest *request)
     this->setupLED();
   }
 
+  bool wifi_updated = false;
+  if (request->hasParam("wifi-ssid")) {
+    String wifi_ssid = request->getParam("wifi-ssid")->value();
+    if (!this->_config.getWifiSSID().equals(wifi_ssid)) {
+      this->_config.setWiFiSSID(wifi_ssid);
+      Serial.printf(
+        "  The WiFi SSID has been set to: %s\n",
+        this->_config.getWifiSSID().c_str()
+      );
+      wifi_updated = true;
+    }
+  }
+
+  if (request->hasParam("wifi-password")) {
+    String wifi_pw = request->getParam("wifi-password")->value();
+      if (!this->_config.getWifiPassword().equals(wifi_pw)) {
+      this->_config.setWiFiPassword(wifi_pw);
+      Serial.printf(
+        "  The WiFi password has been set to: %s\n",
+        this->_config.getWifiPassword().c_str()
+      );
+      wifi_updated = true;
+    }
+  }
+  // updating this flag is delayed until after all configuration is saved
+  // since this is happing asynchronously and we don't want the WiFi reconnect
+  // to happen before the configuration is saved.
+  this->_resetDeviceForNewWifi = wifi_updated;
 
   request->redirect("/config.html");
 }
@@ -450,6 +468,10 @@ String Application::processConfigPageHTML(const String& var)
     } else {
       return String("");
     }
+  } else if (var == "WIFI_SSID") {
+    return this->_config.getWifiSSID();
+  } else if (var == "WIFI_PASSWORD") {
+    return this->_config.getWifiPassword();
   }
 
   return String();
@@ -624,20 +646,23 @@ void Application::setLEDColorForAQI(float aqi_value)
 void Application::loop(void)
 {
 
-  if (this->_resetDeviceForNewWifi) {
-    WiFi.disconnect();
-    this->connectWifi();
-    this->_sensor.begin();
-    setupWebserver();
-    this->_resetDeviceForNewWifi = false;
-    this->_wifiCaptivePortalMode = false;
-  }
 
-  if (this->_wifiCaptivePortalMode) {
+  if (this->_resetDeviceForNewWifi) {
+    Serial.println(F("WiFi credentials updted. Changing WiFi connection ..."));
+    this->connectWifi();
+    if (!this->_sensor.isInitialized()) {
+      Serial.println(F("Starting the air quality sensor ..."));
+      this->_sensor.begin();
+    }
+    Serial.println(F("Recofiguring the web server ..."));
+    this->setupWebserver();
+    this->_wifiCaptivePortalMode = false;
+    this->_resetDeviceForNewWifi = false;
+  }
+  else if (this->_wifiCaptivePortalMode) {
     this->_dnsServer.processNextRequest();
     return;
   }
-
   // slow down loop calls for the sensor
   _loopCounter++;
   if (_loopCounter%1000 != 0) {

@@ -66,3 +66,10 @@ String getContentType(String filename)
   else if(filename.endsWith(".gz")) return "application/x-gzip";
   return "text/plain";
 }
+
+String toStringIp(IPAddress ip) {
+  String res = "";
+  for (int i = 0; i < 3; i++) { res += String((ip >> (8 * i)) & 0xFF) + "."; }
+  res += String(((ip >> 8 * 3)) & 0xFF);
+  return res;
+}
