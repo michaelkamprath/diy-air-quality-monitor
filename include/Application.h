@@ -8,6 +8,7 @@
 #include <AirQualitySensor.h>
 #include <Adafruit_BME680.h>
 #include "Configuration.h"
+#include "Webserver.h"
 
 #if MCU_BOARD_TYPE == MCU_TINYPICO
 #include <TinyPICO.h>
@@ -24,48 +25,32 @@ private:
     time_t _last_transmit_time;
     time_t _last_wifi_reconnect_time;
 
+    Configuration _config;
+    Webserver _webServer;
     AirQualitySensor _sensor;
     Adafruit_BME680 _bme680;
-    AsyncWebServer _server;
 #if MCU_BOARD_TYPE == MCU_TINYPICO
     TinyPICO _tinyPICO;
 #elif MCU_BOARD_TYPE == MCU_YD_ESP32_S3
     CRGB _led;
 #endif
     uint32_t _loopCounter;
-    uint32_t _rootPageViewCount;
     bool _appSetup;
     bool _hasBME680;
     float _latestTemperature;
     float _latestPressure;
     float _latestHumidity;
 
-    Configuration _config;
     DNSServer _dnsServer;
-    IPAddress _captivePortalIP;
     bool _wifiCaptivePortalMode;
     bool _resetDeviceForNewWifi;
 
     void printLocalTime(void);
-    void setupWebserver(void);
-    void setupWebserverForCapturePortal(void);
     void connectWifi(void);
-    void setupLED(void);
+
     void setLEDColorForAQI(float aqi_value);
 
-    // web handlers
-    String processStatsPageHTML(const String& var);
-    String processConfigPageHTML(const String& var);
-
     String getAQIStatusColor(float aqi_value) const;
-    void handleRootPageRequest(AsyncWebServerRequest *request);
-    void getJsonPayload(DynamicJsonDocument &doc) const;
-    void handleStatsPageRequest(AsyncWebServerRequest *request);
-    void handSubmitConfigRequest(AsyncWebServerRequest *request);
-    void handleJsonRequest(AsyncWebServerRequest *request);
-
-    void handleHotspotDectect(AsyncWebServerRequest *request);
-    void handleSetWifiInfo(AsyncWebServerRequest *request);
 public:
     static Application* getInstance(void);
 
@@ -75,12 +60,14 @@ public:
     void loop(void);
 
     AirQualitySensor& sensor(void)          { return _sensor; }
-    AsyncWebServer& server(void)            { return _server; }
+    Webserver& webServer(void)              { return _webServer; }
 
+    void getJsonPayload(DynamicJsonDocument &doc) const;
+    void resetWifiConnection(void);
+    void setupLED(void);
 
-    void handleConfigPageRequest(AsyncWebServerRequest *request);
-    void handleUnassignedPath(AsyncWebServerRequest *request);
-    const IPAddress& captivePortalIP(void) const        { return this->_captivePortalIP; }
+    // web handlers
+    String processStatsPageHTML(const String& var);
 
 };
 

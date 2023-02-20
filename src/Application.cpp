@@ -7,19 +7,6 @@
 #include "Application.h"
 #include "Utilities.h"
 
-#ifndef USE_LittleFS
-#define USE_LittleFS 1
-#endif
-
-#include <FS.h>
-#if USE_LittleFS != 0
-  #include <LittleFS.h>
-  #define SPIFFS LittleFS
-#else
-  #include <SPIFFS.h>
-#endif
-
-
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 0;
 const int   daylightOffset_sec = 0;
@@ -46,21 +33,19 @@ Application::Application()
     _last_update_time(0),
     _last_transmit_time(0),
     _last_wifi_reconnect_time(0),
+    _config(),
+    _webServer(_config),
     _sensor(AIR_QUALITY_SENSOR_UPDATE_SECONDS),
     _bme680(),
-    _server(80),
 #if MCU_BOARD_TYPE == MCU_TINYPICO
     _tinyPICO(),
 #endif
     _loopCounter(0),
-    _rootPageViewCount(0),
     _appSetup(false),
     _hasBME680(false),
     _latestTemperature(UNSET_ENVIRONMENT_VALUE),
     _latestPressure(UNSET_ENVIRONMENT_VALUE),
     _latestHumidity(UNSET_ENVIRONMENT_VALUE),
-    _config(),
-    _captivePortalIP(10, 1, 1, 1),
     _wifiCaptivePortalMode(false),
     _resetDeviceForNewWifi(false)
 {
@@ -123,7 +108,7 @@ void Application::setup(void)
     // WiFi.mode(WIFI_OFF);
     WiFi.mode(WIFI_AP);
     WiFi.softAPConfig(
-      this->captivePortalIP(), this->captivePortalIP(),
+      WiFi.softAPIP(), WiFi.softAPIP(),
       IPAddress(255, 255, 255, 0)
     );
     WiFi.softAP("DIY Air Quality Sensor");
@@ -148,18 +133,21 @@ void Application::setup(void)
     _bme680.setGasHeater(320, 150); // 320*C for 150 ms
   }
 
-  // start the sensor
+  // start the web server and sensor
   if (this->_wifiCaptivePortalMode) {
-    setupWebserverForCapturePortal();
+    this->webServer().startCaptivePortal(WiFi.softAPIP());
   } else {
     _sensor.begin();
-    setupWebserver();
+    this->webServer().startNormal();
   }
-
-
-
   _appSetup = true;
 }
+
+void Application::resetWifiConnection(void)
+{
+  this->_resetDeviceForNewWifi = true;
+}
+
 void Application::printLocalTime(void)
 {
   int try_count = 0;
@@ -177,206 +165,6 @@ void Application::printLocalTime(void)
     }
   }
   Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
-}
-
-void Application::setupWebserverForCapturePortal(void)
-{
-  _server.reset();
-  _server.on("/", HTTP_GET, std::bind(&Application::handleHotspotDectect, this, std::placeholders::_1));
-  _server.on("/hotspot-detect.html", HTTP_GET, std::bind(&Application::handleHotspotDectect, this, std::placeholders::_1));
-  _server.on("/generate_204", HTTP_GET, std::bind(&Application::handleHotspotDectect, this, std::placeholders::_1));
-  _server.on("/config.html", HTTP_GET, std::bind(&Application::handleConfigPageRequest, this, std::placeholders::_1));
-  _server.on("/update", HTTP_GET, std::bind(&Application::handSubmitConfigRequest, this, std::placeholders::_1));
-  _server.onNotFound(std::bind(&Application::handleUnassignedPath, this, std::placeholders::_1));
-  _server.begin();
-}
-
-void Application::setupWebserver(void)
-{
-  _server.reset();
-  _server.on("/", HTTP_GET, std::bind(&Application::handleRootPageRequest, this, std::placeholders::_1));
-  _server.on("/index.html", HTTP_GET, std::bind(&Application::handleRootPageRequest, this, std::placeholders::_1));
-  _server.on("/stats", HTTP_GET, std::bind(&Application::handleStatsPageRequest, this, std::placeholders::_1));
-  _server.on("/stats.html", HTTP_GET, std::bind(&Application::handleStatsPageRequest, this, std::placeholders::_1));
-  _server.on("/json", HTTP_GET, std::bind(&Application::handleJsonRequest, this, std::placeholders::_1));
-  _server.on("/config.html", HTTP_GET, std::bind(&Application::handleConfigPageRequest, this, std::placeholders::_1));
-  _server.on("/update", HTTP_GET, std::bind(&Application::handSubmitConfigRequest, this, std::placeholders::_1));
-
-  _server.onNotFound(std::bind(&Application::handleUnassignedPath, this, std::placeholders::_1));
-
-  _server.begin();
-}
-
-
-void Application::handleHotspotDectect(AsyncWebServerRequest *request)
-{
-    Serial.printf("Hotspot WEB: %s - %s - %s\n", request->client()->remoteIP().toString().c_str(), request->host().c_str(), request->url().c_str());
-    String apIPStr = toStringIp( Application::getInstance()->captivePortalIP());
-    if (request->host().equals(apIPStr)) {
-      this->handleConfigPageRequest(request);
-    } else {
-      // need to send a 200 response quickly so captive portal shows. Use an HTML redirect
-      // to bring the user to config page.
-      request->send(200, "text/html",
-        ""
-        "<!DOCTYPE html><html><head>"
-        "<title>DIY Air Quality Sensor Config</title>"
-        "<meta http-equiv=\"Refresh\" content=\"0; url='http://10.1.1.1/config.html'\" />"
-        "</head><body></body></html>"
-      );
-    }
-}
-
-
-void Application::handleUnassignedPath(AsyncWebServerRequest *request)
-{
-  String path(request->url());
-  if (path.endsWith("/")) path += "index.html";
-
-  // check to see if the URL is in the SPIFFS
-  if (SPIFFS.exists(path)) {
-    Serial.printf("Unassigned WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), path.c_str());
-    request->send(SPIFFS, path, getContentType(path));
-    return;
-  }
-  // it is truely not found. Send a 404
-  Serial.printf("WEB: %s - %s - UNKNOWN PATH\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-  request->send(404, "text/plain", "Not found");
-}
-
-void Application::handleRootPageRequest(AsyncWebServerRequest *request)
-{
-  String root_file = "/index.html";
-
-  Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-  request->send(SPIFFS, root_file, getContentType(root_file));
-  _rootPageViewCount++;
-}
-
-void Application::handleStatsPageRequest(AsyncWebServerRequest *request)
-{
-  String stats_file = "/stats.html";
-  Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-  request->send(SPIFFS, stats_file, getContentType(stats_file), false, std::bind(&Application::processStatsPageHTML, this, std::placeholders::_1));
-}
-
-void Application::handleConfigPageRequest(AsyncWebServerRequest *request)
-{
-  String config_file = "/config.html";
-  Serial.printf("Config WEB: %s - %s - %s\n", request->client()->remoteIP().toString().c_str(), request->host().c_str(), request->url().c_str());
-  AsyncWebServerResponse* response = request->beginResponse(
-    SPIFFS,
-    config_file,
-    getContentType(config_file),
-    false,
-    std::bind(&Application::processConfigPageHTML, this, std::placeholders::_1)
-  );
-  request->send(response);
-}
-
-
-void Application::handleJsonRequest(AsyncWebServerRequest *request)
-{
-  Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-  DynamicJsonDocument jsonPayload(2048);
-  getJsonPayload(jsonPayload);
-
-  String requestBody;
-  serializeJson(jsonPayload, requestBody);
-
-  request->send(200, "application/json", requestBody);
-}
-
-void Application::handSubmitConfigRequest(AsyncWebServerRequest *request)
-{
-  Serial.printf("WEB: %s - %s - %s\n", request->client()->remoteIP().toString().c_str(), request->host().c_str(), request->url().c_str());
-
-  // GET input1 value on <ESP_IP>/get?input1=<inputMessage>
-  if (request->hasParam("enable-json")) {
-    String check_value = request->getParam("enable-json")->value();
-    if (check_value == "on") {
-      this->_config.setJSONUploadEnabled(true);
-    } else {
-      this->_config.setJSONUploadEnabled(false);
-    }
-  } else {
-    // if this parameter is not present, that means the checkbox has no value (not)
-    this->_config.setJSONUploadEnabled(false);
-  }
-  Serial.printf(
-    "  The JSON telemetry upload has been %s\n",
-    this->_config.getJSONUploadEnabled() ? "ENABLED" : "DISABLED"
-  );
-
-  if (request->hasParam("server-url")) {
-    String server_url = request->getParam("server-url")->value();
-    this->_config.setServerURL(server_url);
-    Serial.printf(
-      "  The JSON telemetry upload URL has been set to: %s\n",
-      this->_config.getServerURL().c_str()
-    );
-  }
-
-  if (request->hasParam("sensor-name")) {
-    String sensor_name = request->getParam("sensor-name")->value();
-    this->_config.setSensorName(sensor_name);
-    Serial.printf(
-      "  The sensor name has been set to: %s\n",
-      this->_config.getSensorName().c_str()
-    );
-  }
-
-  if (request->hasParam("upload-rate")) {
-    String rate_str = request->getParam("upload-rate")->value();
-    int16_t rate_val = rate_str.toInt();
-    this->_config.setJSONUploadRateSeconds(rate_val);
-    Serial.printf(
-      "  The JSON upload rate has been set to %d seconds\n",
-      this->_config.getJSONUploadRateSeconds()
-    );
-  }
-
-  if (request->hasParam("led-brightness")) {
-    String value_str = request->getParam("led-brightness")->value();
-    int16_t value = value_str.toInt();
-    this->_config.setLEDBrightnessIndex(value);
-    Serial.printf(
-      "  The LED brightness index has been set to %d\n",
-      this->_config.getLEDBrightnessIndex()
-    );
-    this->setupLED();
-  }
-
-  bool wifi_updated = false;
-  if (request->hasParam("wifi-ssid")) {
-    String wifi_ssid = request->getParam("wifi-ssid")->value();
-    if (!this->_config.getWifiSSID().equals(wifi_ssid)) {
-      this->_config.setWiFiSSID(wifi_ssid);
-      Serial.printf(
-        "  The WiFi SSID has been set to: %s\n",
-        this->_config.getWifiSSID().c_str()
-      );
-      wifi_updated = true;
-    }
-  }
-
-  if (request->hasParam("wifi-password")) {
-    String wifi_pw = request->getParam("wifi-password")->value();
-      if (!this->_config.getWifiPassword().equals(wifi_pw)) {
-      this->_config.setWiFiPassword(wifi_pw);
-      Serial.printf(
-        "  The WiFi password has been set to: %s\n",
-        this->_config.getWifiPassword().c_str()
-      );
-      wifi_updated = true;
-    }
-  }
-  // updating this flag is delayed until after all configuration is saved
-  // since this is happing asynchronously and we don't want the WiFi reconnect
-  // to happen before the configuration is saved.
-  this->_resetDeviceForNewWifi = wifi_updated;
-
-  request->redirect("/config.html");
 }
 
 String Application::processStatsPageHTML(const String& var)
@@ -424,58 +212,12 @@ String Application::processStatsPageHTML(const String& var)
   } else if (var == "FANSTATUS") {
     return String(_sensor.statusFan());
   } else if (var == "ROOTVIEWCOUNT") {
-    return String(_rootPageViewCount);
+    return String(this->_webServer.getRootViewCount());
   }
 
   return String();
 }
 
-String Application::processConfigPageHTML(const String& var)
-{
-  if (var == "ENABLE_CHECKED") {
-    if (this->_config.getJSONUploadEnabled()) {
-      return String("checked");
-    } else {
-      return String();
-    }
-  } else if (var == "SERVER_URL") {
-    return this->_config.getServerURL();
-  } else if (var == "SENSOR_NAME") {
-    return this->_config.getSensorName();
-  } else if (var == "UPLOADRATE") {
-    return String(this->_config.getJSONUploadRateSeconds());
-  } else if (var == "LED_OFF") {
-    if (this->_config.getLEDBrightnessIndex() == 0) {
-      return String("selected");
-    } else {
-      return String("");
-    }
-  } else if (var == "LED_LOW") {
-    if (this->_config.getLEDBrightnessIndex() == 1) {
-      return String("selected");
-    } else {
-      return String("");
-    }
-  } else if (var == "LED_MED") {
-    if (this->_config.getLEDBrightnessIndex() == 2) {
-      return String("selected");
-    } else {
-      return String("");
-    }
-  } else if (var == "LED_HI") {
-    if (this->_config.getLEDBrightnessIndex() == 3) {
-      return String("selected");
-    } else {
-      return String("");
-    }
-  } else if (var == "WIFI_SSID") {
-    return this->_config.getWifiSSID();
-  } else if (var == "WIFI_PASSWORD") {
-    return this->_config.getWifiPassword();
-  }
-
-  return String();
-}
 void Application::setupLED(void)
 {
 #if MCU_BOARD_TYPE == MCU_TINYPICO
@@ -655,7 +397,7 @@ void Application::loop(void)
       this->_sensor.begin();
     }
     Serial.println(F("Recofiguring the web server ..."));
-    this->setupWebserver();
+    this->webServer().startNormal();
     this->_wifiCaptivePortalMode = false;
     this->_resetDeviceForNewWifi = false;
   }

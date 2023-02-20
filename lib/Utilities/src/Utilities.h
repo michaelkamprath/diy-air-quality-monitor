@@ -2,6 +2,14 @@
 #define __Utilities__
 #include <Arduino.h>
 #include <Vector.h>
+#include <FS.h>
+
+#if USE_LittleFS != 0
+  #include <LittleFS.h>
+  #define SPIFFS LittleFS
+#else
+  #include <SPIFFS.h>
+#endif
 
 // Prints the passed buffer to serial in a human-readable format
 void print_buffer( const uint8_t* buffer, uint8_t size);
