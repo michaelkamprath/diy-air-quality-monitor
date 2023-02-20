@@ -391,6 +391,7 @@ void Application::loop(void)
 
   if (this->_resetDeviceForNewWifi) {
     Serial.println(F("WiFi credentials updted. Changing WiFi connection ..."));
+    this->webServer().stop();
     this->connectWifi();
     if (!this->_sensor.isInitialized()) {
       Serial.println(F("Starting the air quality sensor ..."));

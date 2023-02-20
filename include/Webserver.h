@@ -32,6 +32,7 @@ public:
 
     void startCaptivePortal(const IPAddress& serverIP);
     void startNormal(void);
+    void stop(void);
 
     uint32_t getRootViewCount(void) const       { return _rootPageViewCount; }
 };

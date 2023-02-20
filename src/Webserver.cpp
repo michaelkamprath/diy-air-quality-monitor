@@ -44,13 +44,13 @@ void Webserver::startCaptivePortal(const IPAddress& serverIP)
 {
     // build this string now, not later
     _captivePortalResponse = String(
-        ""
+        F(""
         "<!DOCTYPE html><html><head>"
         "<title>DIY Air Quality Sensor Config</title>"
-        "<meta http-equiv=\"Refresh\" content=\"0; url='http://")
+        "<meta http-equiv=\"Refresh\" content=\"0; url='http://"))
             + toStringIp(serverIP)
-            + String("/config.html'\" />"
-        "</head><body></body></html>"
+            + String(F("/config.html'\" />"
+        "</head><body></body></html>")
         );
 
     _server.reset();
@@ -77,6 +77,11 @@ void Webserver::startNormal(void)
     _server.onNotFound(std::bind(&Webserver::handleUnassignedPath, this, std::placeholders::_1));
 
     _server.begin();
+}
+
+void Webserver::stop(void)
+{
+    _server.end();
 }
 
 void Webserver::handleHotspotDectect(AsyncWebServerRequest *request)
