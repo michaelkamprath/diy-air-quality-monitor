@@ -9,6 +9,7 @@
 #include <Adafruit_BME680.h>
 #include "Configuration.h"
 #include "Webserver.h"
+#include "HomeAssistant.h"
 
 #if MCU_BOARD_TYPE == MCU_TINYPICO
 #include <TinyPICO.h>
@@ -27,6 +28,7 @@ private:
 
     Configuration _config;
     Webserver _webServer;
+    HomeAssistant _ha;
     AirQualitySensor _sensor;
     Adafruit_BME680 _bme680;
 #if MCU_BOARD_TYPE == MCU_TINYPICO

@@ -35,6 +35,7 @@ Application::Application()
     _last_wifi_reconnect_time(0),
     _config(),
     _webServer(_config),
+    _ha(_config),
     _sensor(AIR_QUALITY_SENSOR_UPDATE_SECONDS),
     _bme680(),
 #if MCU_BOARD_TYPE == MCU_TINYPICO
@@ -71,6 +72,7 @@ void Application::connectWifi(void)
     WiFi.mode(WIFI_STA);
     WiFi.begin(this->_config.getWifiSSID().c_str(), this->_config.getWifiPassword().c_str());
     int counter = 0;
+    // TODO attempt to connect for 5 minutes. If fail, return to AP mode
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
         Serial.print(F("."));
@@ -111,8 +113,9 @@ void Application::setup(void)
       WiFi.softAPIP(), WiFi.softAPIP(),
       IPAddress(255, 255, 255, 0)
     );
+    // TODO append AP name with a hash of the MAC addres to keep unique.
     WiFi.softAP("DIY Air Quality Sensor");
-    Serial.print("AP IP address: ");
+    Serial.print(F("AP IP address: "));
     Serial.println(WiFi.softAPIP());
     this->_dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
     this->_dnsServer.start(53, "*", WiFi.softAPIP());
@@ -139,6 +142,7 @@ void Application::setup(void)
   } else {
     _sensor.begin();
     this->webServer().startNormal();
+    this->_ha.begin(_hasBME680);
   }
   _appSetup = true;
 }
@@ -160,7 +164,7 @@ void Application::printLocalTime(void)
       Serial.print(try_count);
       Serial.println(F(""));
     } else {
-      Serial.println("Failed to obtain time");
+      Serial.println(F("Failed to obtain time"));
       return;
     }
   }
@@ -387,11 +391,10 @@ void Application::setLEDColorForAQI(float aqi_value)
 
 void Application::loop(void)
 {
-
-
   if (this->_resetDeviceForNewWifi) {
     Serial.println(F("WiFi credentials updted. Changing WiFi connection ..."));
     this->webServer().stop();
+    this->_ha.stop();
     this->connectWifi();
     if (!this->_sensor.isInitialized()) {
       Serial.println(F("Starting the air quality sensor ..."));
@@ -399,6 +402,7 @@ void Application::loop(void)
     }
     Serial.println(F("Recofiguring the web server ..."));
     this->webServer().startNormal();
+    this->_ha.begin(_hasBME680);
     this->_wifiCaptivePortalMode = false;
     this->_resetDeviceForNewWifi = false;
   }
@@ -406,6 +410,9 @@ void Application::loop(void)
     this->_dnsServer.processNextRequest();
     return;
   }
+
+  this->_ha.loop();
+
   // slow down loop calls for the sensor
   _loopCounter++;
   if (_loopCounter%1000 != 0) {
@@ -514,6 +521,7 @@ void Application::loop(void)
     } else {
       Serial.printf("    ERROR when posting JSON = %d\n", httpResponseCode);
     }
+    this->_ha.publishState(requestBody);
   } else {
     Serial.println(F("    ERROR - Coinfigured to perform JSON upload but WiFi is not connected."));
   }

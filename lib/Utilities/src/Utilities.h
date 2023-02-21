@@ -28,4 +28,6 @@ String getContentType(String filename);
 
 String toStringIp(IPAddress ip);
 
+String mac2String(byte ar[]);
+
 #endif // __Utilities__
