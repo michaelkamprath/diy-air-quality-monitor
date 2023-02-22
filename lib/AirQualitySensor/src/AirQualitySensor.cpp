@@ -29,7 +29,8 @@ AirQualitySensor::AirQualitySensor(uint32_t sensor_refresh_seconds)
         _avgPM2p5_24Hour(0),
         _vectorStorage(nullptr),
         _pm2p5_history(),
-        _pm2p5_history_insertion_idx(0)
+        _pm2p5_history_insertion_idx(0),
+        _initialized(false)
 {
     uint32_t sensor_history_size = 0;
     // first attempt to allocate history storage in PSRAM (if attached)
@@ -91,6 +92,7 @@ void AirQualitySensor::begin(void)
     // we will wait 28 seconds here.
     Serial.println(F("Waiting 28 seconds for particulate sensor to power up and initialize ..."));
     delay(28000);
+    this->_initialized = true;
 }
 
 bool AirQualitySensor::updateSensorReading(void)

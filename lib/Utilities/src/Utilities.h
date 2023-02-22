@@ -2,6 +2,14 @@
 #define __Utilities__
 #include <Arduino.h>
 #include <Vector.h>
+#include <FS.h>
+
+#if USE_LittleFS != 0
+  #include <LittleFS.h>
+  #define SPIFFS LittleFS
+#else
+  #include <SPIFFS.h>
+#endif
 
 // Prints the passed buffer to serial in a human-readable format
 void print_buffer( const uint8_t* buffer, uint8_t size);
@@ -14,4 +22,14 @@ void print_buffer( const uint8_t* buffer, uint8_t size);
 float calculatePartialOrderedAverage( const Vector<uint16_t>& data, size_t start_idx, size_t number_of_values );
 
 String convertEpochToString(time_t epoch_time);
+
+// returns the HTTP content type based on filename extension
+String getContentType(String filename);
+
+String toStringIp(IPAddress ip);
+
+String mac2String(byte ar[]);
+
+String convertNameToID(String name);
+
 #endif // __Utilities__

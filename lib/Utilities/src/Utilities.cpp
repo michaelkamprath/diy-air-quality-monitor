@@ -49,3 +49,66 @@ String convertEpochToString(time_t epoch_time)
 
     return String(buf);
 }
+
+String getContentType(String filename)
+{
+  if(filename.endsWith(".htm")) return "text/html";
+  else if(filename.endsWith(".html")) return "text/html";
+  else if(filename.endsWith(".css")) return "text/css";
+  else if(filename.endsWith(".js")) return "application/javascript";
+  else if(filename.endsWith(".png")) return "image/png";
+  else if(filename.endsWith(".gif")) return "image/gif";
+  else if(filename.endsWith(".jpg")) return "image/jpeg";
+  else if(filename.endsWith(".ico")) return "image/x-icon";
+  else if(filename.endsWith(".xml")) return "text/xml";
+  else if(filename.endsWith(".pdf")) return "application/x-pdf";
+  else if(filename.endsWith(".zip")) return "application/x-zip";
+  else if(filename.endsWith(".gz")) return "application/x-gzip";
+  return "text/plain";
+}
+
+String toStringIp(IPAddress ip) {
+  String res = "";
+  for (int i = 0; i < 3; i++) { res += String((ip >> (8 * i)) & 0xFF) + "."; }
+  res += String(((ip >> 8 * 3)) & 0xFF);
+  return res;
+}
+
+String mac2String(byte ar[]) {
+  String s;
+  for (byte i = 0; i < 6; ++i)
+  {
+    char buf[3];
+    sprintf(buf, "%02X", ar[i]); // J-M-L: slight modification, added the 0 in the format for padding 
+    s += buf;
+    // if (i < 5) s += ':';
+  }
+  return s;
+}
+
+String convertNameToID(String name)
+{
+    String updatedName = name;
+    updatedName.trim();
+    updatedName.toLowerCase();
+
+    char *buffer = (char*)malloc(updatedName.length()+1);
+    updatedName.toCharArray(buffer, updatedName.length()+1);
+
+    int j = 0;
+    for (int i = 0; i < updatedName.length() + 1; i++) {
+        char c = buffer[i];
+        if (isAlphaNumeric(c) || (c == '-') || (c == 0)) {
+            buffer[j] = c;
+            j++;
+        } else if (c == ' ') {
+            buffer[j] = '_';
+            j++;
+        }
+    }
+
+    String returString = String(buffer);
+    free(buffer);
+
+    return returString;
+}

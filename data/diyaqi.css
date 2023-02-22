@@ -189,6 +189,12 @@
   box-sizing:border-box;
 }
 
+.config-frame .section-title {
+  font-family: "Arial Black", Gadget, sans-serif;
+  text-align: center;
+  font-size: 20px;
+  margin-bottom: 14px;
+}
 .config-frame .form-item {
   border-radius: 8px;
   margin-bottom: 20px;
@@ -214,7 +220,7 @@
   width: 50%;
 }
 
-.config-frame .form-item input[type=text] {
+.config-frame .form-item input[type=text], input[type=password] {
   width: 100%;
   margin: 8px 0;
   box-sizing: border-box;
@@ -225,12 +231,12 @@
   border-radius: 4px;
 }
 
-.config-frame .submit-button {
+.submit-button {
   text-align: center;
 
 }
 
-.config-frame .submit-button input[type=submit] {
+.submit-button input[type=submit] {
 	width: 90%;
 	padding-top: 8px;
 	padding-bottom: 8px;

@@ -8,41 +8,108 @@
   <body>
     <div id="content" class="content">
       <div class="title">DIY Air Quality Monitor Configuration</div>
-      <div class="config-frame">
         <form action="/update" method="get" class="config-form">
-            <div class="form-item"><div class="flex-row">
-              <div class="item-label">Enable posting JSON telemetry: </div>
-              <div class="input-box">
-                <label class="switch" for="checkbox">
-                  <input type="checkbox" id="checkbox" name="enable-json" ^ENABLE_CHECKED^>
-                  <div class="slider round"></div>
-                </label>
-              </div></div>
-            </div>
+
+          <div class="config-frame">
+            <div class="section-title">WiFi Connection</div>
             <div class="form-item">
-              JSON telementry server URL: </br>
-              <input type="text" name="server-url" value="^SERVER_URL^">
+              WiFi SSID: </br>
+              <input type="text" name="wifi-ssid" maxlength=32 value="^WIFI_SSID^">
             </div>
+            <div class="form-item" style="margin-bottom: 0px;">
+              WiFi Password:</br>
+              <input type="password" name="wifi-password" maxlength=64 value="^WIFI_PASSWORD^">
+            </div>
+          </div>
+
+          <div class="config-frame">
+            <div class="section-title">Device Settings</div>
             <div class="form-item">
               Sensor name:</br>
               <input type="text" name="sensor-name" value="^SENSOR_NAME^">
             </div>
-            <div class="form-item"><div class="flex-row">
-              <div class="item-label">Upload rate (seconds): </div>
-              <div class="input-box">
-                <input type="number" inputmode="numeric" pattern="[0-9]*" step="5" max="3600" min="5" value="^UPLOADRATE^" id="upload-rate" name="upload-rate">
-              </div></div>
+            <div class="form-item" style="margin-bottom: 0px;">
+              <div class="flex-row">
+                <div class="item-label">LED Brightness: </div>
+                <select id="led-brightness" name="led-brightness">
+                  <option value="0" ^LED_OFF^>Off</option>
+                  <option value="1" ^LED_LOW^>Low</option>
+                  <option value="2" ^LED_MED^>Medium</option>
+                  <option value="3" ^LED_HI^>High</option>
+                </select>
+              </div>
             </div>
-            <div class="form-item"><div class="flex-row">
-              <div class="item-label">LED Brightness: </div>
-              <select id="led-brightness" name="led-brightness">
-                <option value="0" ^LED_OFF^>Off</option>
-                <option value="1" ^LED_LOW^>Low</option>
-                <option value="2" ^LED_MED^>Medium</option>
-                <option value="3" ^LED_HI^>High</option>
-              </select>
-            </div></div>
-            <div class="submit-button"><input type="submit" value="Submit"></div>
+          </div>
+
+          <div class="config-frame">
+            <div class="section-title">Home Assistant / MQTT</div>
+            <div class="form-item">
+              <div class="flex-row">
+                <div class="item-label">Enable MQTT Connection: </div>
+                <div class="input-box">
+                  <label class="switch" for="checkbox">
+                    <input type="checkbox" id="checkbox" name="enable-mqtt" ^MQTT_CHECKED^>
+                    <div class="slider round"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="form-item">
+              MQTT Server: </br>
+              <input type="text" name="mqtt-server" maxlength=128 value="^MQTT_SERVER^">
+            </div>
+            <div class="form-item">
+              <div class="flex-row">
+                <div class="item-label">MQTT Port: </div>
+                <div class="input-box">
+                  <input type="number" inputmode="numeric" pattern="[0-9]*" step="1" max="65535" min="1" value="^MQTT_PORT^" id="mqtt-port" name="mqtt-port">
+                </div>
+              </div>
+            </div>
+            <div class="form-item">
+              Account: </br>
+              <input type="text" name="mqtt-account" maxlength=32 value="^MQTT_ACCOUNT^">
+            </div>
+            <div class="form-item">
+              Password: </br>
+              <input type="password" name="mqtt-password" maxlength=32 value="^MQTT_PASSWORD^">
+            </div>
+            <div class="form-item" style="margin-bottom: 0px;">
+              Discovery Prefix: </br>
+              <input type="text" name="mqtt-discovery-prefix" maxlength=32 value="^MQTT_DISCO_PREFIX^">
+            </div>
+          </div>
+
+          <div class="config-frame">
+            <div class="section-title">JSON Push</div>
+            <div class="form-item">
+              <div class="flex-row">
+                <div class="item-label">Enable posting JSON telemetry: </div>
+                <div class="input-box">
+                  <label class="switch" for="checkbox">
+                    <input type="checkbox" id="checkbox" name="enable-json" ^ENABLE_CHECKED^>
+                    <div class="slider round"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="form-item">
+              <div class="flex-row">
+                <div class="item-label">Upload rate (seconds): </div>
+                <div class="input-box">
+                  <input type="number" inputmode="numeric" pattern="[0-9]*" step="5" max="3600" min="5" value="^UPLOADRATE^" id="upload-rate" name="upload-rate">
+                </div>
+              </div>
+            </div>
+            <div class="form-item" style="margin-bottom: 0px;">
+              JSON telementry server URL: </br>
+              <input type="text" name="server-url" value="^SERVER_URL^">
+            </div>
+          </div>
+
+
+
+          <div class="submit-button"><input type="submit" value="Submit"></div>
         </form>
       </div>
       <div class="navigation">

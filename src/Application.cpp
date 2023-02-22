@@ -1,23 +1,11 @@
 #include <Arduino.h>
 #include <HTTPClient.h>
+#include <AsyncTCP.h>
 #include <ArduinoJson.h>
 #include <Wire.h>
 #include "time.h"
 #include "Application.h"
 #include "Utilities.h"
-
-#ifndef USE_LittleFS
-#define USE_LittleFS 1
-#endif
-
-#include <FS.h>
-#if USE_LittleFS != 0
-  #include <LittleFS.h>
-  #define SPIFFS LittleFS
-#else
-  #include <SPIFFS.h>
-#endif
-
 
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 0;
@@ -45,20 +33,23 @@ Application::Application()
     _last_update_time(0),
     _last_transmit_time(0),
     _last_wifi_reconnect_time(0),
+    _config(),
+    _webServer(_config),
+    _ha(_config),
     _sensor(AIR_QUALITY_SENSOR_UPDATE_SECONDS),
     _bme680(),
-    _server(80),
 #if MCU_BOARD_TYPE == MCU_TINYPICO
     _tinyPICO(),
 #endif
     _loopCounter(0),
-    _rootPageViewCount(0),
     _appSetup(false),
     _hasBME680(false),
     _latestTemperature(UNSET_ENVIRONMENT_VALUE),
     _latestPressure(UNSET_ENVIRONMENT_VALUE),
     _latestHumidity(UNSET_ENVIRONMENT_VALUE),
-    _config()
+    _wifiCaptivePortalMode(false),
+    _resetDeviceForNewWifi(false),
+    _resetMQTTConnection(false)
 {
 #if MCU_BOARD_TYPE == MCU_YD_ESP32_S3
   Wire.begin(17,18);
@@ -70,22 +61,19 @@ Application::~Application()
 
 }
 
-void Application::setup(void)
+void Application::connectWifi(void)
 {
-  // Initialize SPIFFS
-  if(!SPIFFS.begin(true)){
-    Serial.println("ERROR: Could not mount SPIFFs");
-    return;
-  }
-  setupLED();
-
-  // start the WiFi
+  WiFi.disconnect();
   while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(F("Starting Wifi connection to SSID = "));
-    Serial.print(String(WIFI_SSID));
-    Serial.print(F(" "));
-    WiFi.begin(String(WIFI_SSID).c_str(), String(WIFI_PASSWORD).c_str());
+    Serial.printf(
+      "Starting Wifi connection to SSID = %s, password = %s\n",
+      this->_config.getWifiSSID().c_str(),
+      this->_config.getWifiPassword().c_str()
+    );
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(this->_config.getWifiSSID().c_str(), this->_config.getWifiPassword().c_str());
     int counter = 0;
+    // TODO attempt to connect for 5 minutes. If fail, return to AP mode
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
         Serial.print(F("."));
@@ -106,6 +94,36 @@ void Application::setup(void)
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   printLocalTime();
   time(&_boot_time);
+}
+void Application::setup(void)
+{
+  // Initialize SPIFFS
+  if(!SPIFFS.begin(true)){
+    Serial.println("ERROR: Could not mount SPIFFs");
+    return;
+  }
+  setupLED();
+
+  // start the WiFi
+  if (this->_config.getWifiSSID().length() == 0) {
+    // There is no wifi set up. Initiate the captive portal
+    Serial.println(F("No SSID saved for WiFi. Starting captive portal ..."));
+    // WiFi.mode(WIFI_OFF);
+    WiFi.mode(WIFI_AP);
+    WiFi.softAPConfig(
+      WiFi.softAPIP(), WiFi.softAPIP(),
+      IPAddress(255, 255, 255, 0)
+    );
+    // TODO append AP name with a hash of the MAC addres to keep unique.
+    WiFi.softAP("DIY Air Quality Sensor");
+    Serial.print(F("AP IP address: "));
+    Serial.println(WiFi.softAPIP());
+    this->_dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+    this->_dnsServer.start(53, "*", WiFi.softAPIP());
+    this->_wifiCaptivePortalMode = true;
+  } else {
+    this->connectWifi();
+  }
 
   if (!_bme680.begin(BME680_SENSOR_I2C_ADDRESS)) {
     Serial.println(F("NOTE - Could not find BME680 sensor. Will not create additional environment readings."));
@@ -119,13 +137,28 @@ void Application::setup(void)
     _bme680.setGasHeater(320, 150); // 320*C for 150 ms
   }
 
-  // start the sensor
-  _sensor.begin();
-
-  setupWebserver();
-
+  // start the web server and sensor
+  if (this->_wifiCaptivePortalMode) {
+    this->webServer().startCaptivePortal(WiFi.softAPIP());
+  } else {
+    _sensor.begin();
+    this->webServer().startNormal();
+    this->_ha.begin(_hasBME680);
+  }
   _appSetup = true;
 }
+
+void Application::resetWifiConnection(void)
+{
+  this->_resetDeviceForNewWifi = true;
+}
+
+void Application::resetMQTTConnection(void)
+{
+  this->_resetMQTTConnection = true;
+}
+
+
 void Application::printLocalTime(void)
 {
   int try_count = 0;
@@ -138,164 +171,11 @@ void Application::printLocalTime(void)
       Serial.print(try_count);
       Serial.println(F(""));
     } else {
-      Serial.println("Failed to obtain time");
+      Serial.println(F("Failed to obtain time"));
       return;
     }
   }
   Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
-}
-
-void Application::setupWebserver(void)
-{
-  _server.on("/", HTTP_GET, std::bind(&Application::handleRootPageRequest, this, std::placeholders::_1));
-  _server.on("/index.html", HTTP_GET, std::bind(&Application::handleRootPageRequest, this, std::placeholders::_1));
-  _server.on("/stats", HTTP_GET, std::bind(&Application::handleStatsPageRequest, this, std::placeholders::_1));
-  _server.on("/stats.html", HTTP_GET, std::bind(&Application::handleStatsPageRequest, this, std::placeholders::_1));
-  _server.on("/json", HTTP_GET, std::bind(&Application::handleJsonRequest, this, std::placeholders::_1));
-  _server.on("/config.html", HTTP_GET, std::bind(&Application::handleConfigPageRequest, this, std::placeholders::_1));
-  _server.on("/update", HTTP_GET, std::bind(&Application::handSubmitConfigRequest, this, std::placeholders::_1));
-
-  _server.onNotFound(std::bind(&Application::handleUnassignedPath, this, std::placeholders::_1));
-
-  _server.begin();
-}
-
-String Application::getContentType(String filename)
-{
-  if(filename.endsWith(".htm")) return "text/html";
-  else if(filename.endsWith(".html")) return "text/html";
-  else if(filename.endsWith(".css")) return "text/css";
-  else if(filename.endsWith(".js")) return "application/javascript";
-  else if(filename.endsWith(".png")) return "image/png";
-  else if(filename.endsWith(".gif")) return "image/gif";
-  else if(filename.endsWith(".jpg")) return "image/jpeg";
-  else if(filename.endsWith(".ico")) return "image/x-icon";
-  else if(filename.endsWith(".xml")) return "text/xml";
-  else if(filename.endsWith(".pdf")) return "application/x-pdf";
-  else if(filename.endsWith(".zip")) return "application/x-zip";
-  else if(filename.endsWith(".gz")) return "application/x-gzip";
-  return "text/plain";
-}
-
-void Application::handleUnassignedPath(AsyncWebServerRequest *request)
-{
-  String path(request->url());
-  if (path.endsWith("/")) path += "index.html";
-
-  // check to see if the URL is in the SPIFFS
-  if (SPIFFS.exists(path)) {
-    Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), path.c_str());
-    request->send(SPIFFS, path, getContentType(path));
-    return;
-  }
-  // it is truely not found. Send a 404
-  Serial.printf("WEB: %s - %s - UNKNOWN PATH\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-  request->send(404, "text/plain", "Not found");
-}
-
-void Application::handleRootPageRequest(AsyncWebServerRequest *request)
-{
-  String root_file = "/index.html";
-
-  Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-  request->send(SPIFFS, root_file, getContentType(root_file));
-  _rootPageViewCount++;
-}
-
-void Application::handleStatsPageRequest(AsyncWebServerRequest *request)
-{
-  String stats_file = "/stats.html";
-  Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-  request->send(SPIFFS, stats_file, getContentType(stats_file), false, std::bind(&Application::processStatsPageHTML, this, std::placeholders::_1));
-}
-
-void Application::handleConfigPageRequest(AsyncWebServerRequest *request)
-{
-  String config_file = "/config.html";
-  Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-  request->send(
-    SPIFFS,
-    config_file,
-    getContentType(config_file),
-    false,
-    std::bind(&Application::processConfigPageHTML, this, std::placeholders::_1)
-  );
-}
-
-void Application::handleJsonRequest(AsyncWebServerRequest *request)
-{
-  Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-  DynamicJsonDocument jsonPayload(2048);
-  getJsonPayload(jsonPayload);
-
-  String requestBody;
-  serializeJson(jsonPayload, requestBody);
-
-  request->send(200, "application/json", requestBody);
-}
-
-void Application::handSubmitConfigRequest(AsyncWebServerRequest *request)
-{
-  Serial.printf("WEB: %s - %s\n", request->client()->remoteIP().toString().c_str(), request->url().c_str());
-
-  // GET input1 value on <ESP_IP>/get?input1=<inputMessage>
-  if (request->hasParam("enable-json")) {
-    String check_value = request->getParam("enable-json")->value();
-    if (check_value == "on") {
-      this->_config.setJSONUploadEnabled(true);
-    } else {
-      this->_config.setJSONUploadEnabled(false);
-    }
-  } else {
-    // if this parameter is not present, that means the checkbox has no value (not)
-    this->_config.setJSONUploadEnabled(false);
-  }
-  Serial.printf(
-    "  The JSON telemetry upload has been %s\n",
-    this->_config.getJSONUploadEnabled() ? "ENABLED" : "DISABLED"
-  );
-
-  if (request->hasParam("server-url")) {
-    String server_url = request->getParam("server-url")->value();
-    this->_config.setServerURL(server_url);
-    Serial.printf(
-      "  The JSON telemetry upload URL has been set to: %s\n",
-      this->_config.getServerURL().c_str()
-    );
-  }
-
-  if (request->hasParam("sensor-name")) {
-    String sensor_name = request->getParam("sensor-name")->value();
-    this->_config.setSensorName(sensor_name);
-    Serial.printf(
-      "  The sensor name has been set to: %s\n",
-      this->_config.getSensorName().c_str()
-    );
-  }
-
-  if (request->hasParam("upload-rate")) {
-    String rate_str = request->getParam("upload-rate")->value();
-    int16_t rate_val = rate_str.toInt();
-    this->_config.setJSONUploadRateSeconds(rate_val);
-    Serial.printf(
-      "  The JSON upload rate has been set to %d seconds\n",
-      this->_config.getJSONUploadRateSeconds()
-    );
-  }
-
-  if (request->hasParam("led-brightness")) {
-    String value_str = request->getParam("led-brightness")->value();
-    int16_t value = value_str.toInt();
-    this->_config.setLEDBrightnessIndex(value);
-    Serial.printf(
-      "  The LED brightness index has been set to %d\n",
-      this->_config.getLEDBrightnessIndex()
-    );
-    this->setupLED();
-  }
-
-
-  request->redirect("/config.html");
 }
 
 String Application::processStatsPageHTML(const String& var)
@@ -303,7 +183,7 @@ String Application::processStatsPageHTML(const String& var)
   if (var == "PERCENT") {
     return String("%");
   } else if (var == "WIFISSID") {
-    return String(WIFI_SSID);
+    return this->_config.getWifiSSID();
   } else if (var == "IPADDRESS") {
     return WiFi.localIP().toString();
   } else if (var == "BOOTTIME") {
@@ -343,54 +223,12 @@ String Application::processStatsPageHTML(const String& var)
   } else if (var == "FANSTATUS") {
     return String(_sensor.statusFan());
   } else if (var == "ROOTVIEWCOUNT") {
-    return String(_rootPageViewCount);
+    return String(this->_webServer.getRootViewCount());
   }
 
   return String();
 }
 
-String Application::processConfigPageHTML(const String& var)
-{
-  if (var == "ENABLE_CHECKED") {
-    if (this->_config.getJSONUploadEnabled()) {
-      return String("checked");
-    } else {
-      return String();
-    }
-  } else if (var == "SERVER_URL") {
-    return this->_config.getServerURL();
-  } else if (var == "SENSOR_NAME") {
-    return this->_config.getSensorName();
-  } else if (var == "UPLOADRATE") {
-    return String(this->_config.getJSONUploadRateSeconds());
-  } else if (var == "LED_OFF") {
-    if (this->_config.getLEDBrightnessIndex() == 0) {
-      return String("selected");
-    } else {
-      return String("");
-    }
-  } else if (var == "LED_LOW") {
-    if (this->_config.getLEDBrightnessIndex() == 1) {
-      return String("selected");
-    } else {
-      return String("");
-    }
-  } else if (var == "LED_MED") {
-    if (this->_config.getLEDBrightnessIndex() == 2) {
-      return String("selected");
-    } else {
-      return String("");
-    }
-  } else if (var == "LED_HI") {
-    if (this->_config.getLEDBrightnessIndex() == 3) {
-      return String("selected");
-    } else {
-      return String("");
-    }
-  }
-
-  return String();
-}
 void Application::setupLED(void)
 {
 #if MCU_BOARD_TYPE == MCU_TINYPICO
@@ -560,6 +398,34 @@ void Application::setLEDColorForAQI(float aqi_value)
 
 void Application::loop(void)
 {
+  if (this->_resetDeviceForNewWifi) {
+    Serial.println(F("WiFi credentials updted. Changing WiFi connection ..."));
+    this->webServer().stop();
+    this->_ha.stop();
+    this->connectWifi();
+    if (!this->_sensor.isInitialized()) {
+      Serial.println(F("Starting the air quality sensor ..."));
+      this->_sensor.begin();
+    }
+    Serial.println(F("Recofiguring the web server ..."));
+    this->webServer().startNormal();
+    this->_ha.begin(_hasBME680);
+    this->_wifiCaptivePortalMode = false;
+    this->_resetDeviceForNewWifi = false;
+    this->_resetMQTTConnection = false;
+  }
+  else if (this->_wifiCaptivePortalMode) {
+    this->_dnsServer.processNextRequest();
+    return;
+  }
+
+  if (this->_resetMQTTConnection) {
+    this->_ha.begin(_hasBME680);
+    this->_resetMQTTConnection = false;
+  }
+
+  this->_ha.loop();
+
   // slow down loop calls for the sensor
   _loopCounter++;
   if (_loopCounter%1000 != 0) {
@@ -632,43 +498,48 @@ void Application::loop(void)
     return;
   }
 
-  if (  (!this->_config.getJSONUploadEnabled())
-      || ((timestamp - _last_transmit_time) < this->_config.getJSONUploadRateSeconds())
+  if (  (this->_config.getJSONUploadEnabled() || this->_config.getMQTTEnabled())
+      &&((timestamp - _last_transmit_time) >= this->_config.getJSONUploadRateSeconds())
     )
   {
-    return;
-  }
+    if(WiFi.status()== WL_CONNECTED) {
+      _last_transmit_time = timestamp;
 
-  if(WiFi.status()== WL_CONNECTED) {
-    _last_transmit_time = timestamp;
+      DynamicJsonDocument doc(2048);
+      getJsonPayload(doc);
 
-    DynamicJsonDocument doc(2048);
-    getJsonPayload(doc);
+      HTTPClient http;
+      String requestBody;
+      serializeJson(doc, requestBody);
 
-    HTTPClient http;
-    String requestBody;
+      if (this->_config.getJSONUploadEnabled()) {
+        Serial.print(F("    Initiating a JSON POST to: "));
+        Serial.print(this->_config.getServerURL().c_str());
+        Serial.print(F("\n"));
+        http.begin(this->_config.getServerURL());
+        http.addHeader("Content-Type", "application/json");
 
-    Serial.print(F("    Initiating a JSON POST to: "));
-    Serial.print(this->_config.getServerURL().c_str());
-    Serial.print(F("\n"));
-    http.begin(this->_config.getServerURL());
-    http.addHeader("Content-Type", "application/json");
+        int httpResponseCode = http.POST(requestBody);
+        if (httpResponseCode>0) {
+          String response = http.getString();
+          response.trim();
 
-    serializeJson(doc, requestBody);
-    int httpResponseCode = http.POST(requestBody);
-    if (httpResponseCode>0) {
-      String response = http.getString();
-      response.trim();
-
-      Serial.print(F("    POSTED data to telemetry service with response code = "));
-      Serial.print(httpResponseCode);
-      Serial.print(F(" and response = \""));
-      Serial.print(response);
-      Serial.print(F("\"\n"));
+          Serial.print(F("    POSTED data to telemetry service with response code = "));
+          Serial.print(httpResponseCode);
+          Serial.print(F(" and response = \""));
+          Serial.print(response);
+          Serial.print(F("\"\n"));
+        } else {
+          Serial.print(F("    ERROR when posting JSON = "));
+          Serial.println(httpResponseCode);
+        }
+      }
+      if (this->_config.getMQTTEnabled()) {
+        _last_transmit_time = timestamp;
+        this->_ha.publishState(requestBody);
+      }
     } else {
-      Serial.printf("    ERROR when posting JSON = %d\n", httpResponseCode);
+      Serial.println(F("    ERROR - Unable to perform JSON or MQTT push because WiFi is not connected."));
     }
-  } else {
-    Serial.println(F("    ERROR - Coinfigured to perform JSON upload but WiFi is not connected."));
   }
 }
