@@ -36,4 +36,14 @@ void test_convertEpochToString( void ) {
 
     TEST_ASSERT_TRUE(time1str == convertEpochToString(time1));
 }
+
+void test_convertNameToID( void ) {
+    String test1("Mary's #1 Lamb!");
+    String res1 = convertNameToID(test1);
+    TEST_ASSERT_EQUAL_STRING(res1.c_str(), "marys_1_lamb");
+
+    String test2(" This-IS-the best? ");
+    String res2 = convertNameToID(test2);
+    TEST_ASSERT_EQUAL_STRING(res2.c_str(), "this-is-the_best");
+}
 #endif

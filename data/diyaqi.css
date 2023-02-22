@@ -189,6 +189,12 @@
   box-sizing:border-box;
 }
 
+.config-frame .section-title {
+  font-family: "Arial Black", Gadget, sans-serif;
+  text-align: center;
+  font-size: 20px;
+  margin-bottom: 14px;
+}
 .config-frame .form-item {
   border-radius: 8px;
   margin-bottom: 20px;

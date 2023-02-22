@@ -30,4 +30,6 @@ String toStringIp(IPAddress ip);
 
 String mac2String(byte ar[]);
 
+String convertNameToID(String name);
+
 #endif // __Utilities__

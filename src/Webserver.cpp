@@ -253,11 +253,96 @@ void Webserver::handSubmitConfigRequest(AsyncWebServerRequest *request)
             wifi_updated = true;
         }
     }
+
+    bool mqtt_updated = false;
+
+    if (request->hasParam("enable-mqtt")) {
+        String check_value = request->getParam("enable-mqtt")->value();
+        bool original_value = this->_config.getMQTTEnabled();
+        if (check_value == "on") {
+            this->_config.setMQTTEnabled(true);
+        } else {
+            this->_config.setMQTTEnabled(false);
+        }
+        if (original_value != this->_config.getMQTTEnabled()) {
+            mqtt_updated = true;
+        }
+    } else {
+        // if this parameter is not present, that means the checkbox has no value (not)
+        this->_config.setMQTTEnabled(false);
+    }
+    Serial.printf(
+        "  The JSON telemetry upload has been %s\n",
+        this->_config.getJSONUploadEnabled() ? "ENABLED" : "DISABLED"
+    );
+
+    if (request->hasParam("mqtt-server")) {
+        String mqtt_server = request->getParam("mqtt-server")->value();
+        mqtt_server.trim();
+        if (!this->_config.getMQTTServer().equals(mqtt_server)) {
+            this->_config.setMQTTServer(mqtt_server);
+            Serial.printf(
+                "  The MQTT Server has been set to: %s\n",
+                this->_config.getMQTTServer().c_str()
+            );
+            mqtt_updated = true;
+        }
+    }
+
+    if (request->hasParam("mqtt-port")) {
+        String port_str = request->getParam("mqtt-port")->value();
+        uint16_t port_value = port_str.toInt();
+        if (this->_config.getMQTTPort() != port_value) {
+            this->_config.setMQTTPort(port_value);
+            Serial.printf(
+                "  The MQTT port has been set to %d \n",
+                this->_config.getMQTTPort()
+            );
+            mqtt_updated = true;
+        }
+    }
+
+    if (request->hasParam("mqtt-account")) {
+        String account = request->getParam("mqtt-account")->value();
+        account.trim();
+        if (!this->_config.getMQTTAccount().equals(account)) {
+            this->_config.setMQTTAccount(account);
+            Serial.printf(
+                "  The MQTT account has been set to: %s\n",
+                this->_config.getMQTTAccount().c_str()
+            );
+            mqtt_updated = true;
+        }
+    }
+
+    if (request->hasParam("mqtt-password")) {
+        String password = request->getParam("mqtt-password")->value();
+        password.trim();
+        if (!this->_config.getMQTTPassword().equals(password)) {
+            this->_config.setMQTTPassword(password);
+            mqtt_updated = true;
+        }
+    }
+
+    if (request->hasParam("mqtt-discovery-prefix")) {
+        String prefix = request->getParam("mqtt-discovery-prefix")->value();
+        prefix.trim();
+        if (!this->_config.getMQTTDiscoveryPrefix().equals(prefix)) {
+            this->_config.setMQTTDiscoveryPrefix(prefix);
+            Serial.print(F("  The MQTT discovery prefix has been set to: "));
+            Serial.println(this->_config.getMQTTDiscoveryPrefix());
+            mqtt_updated = true;
+        }
+    }
     // updating this flag is delayed until after all configuration is saved
     // since this is happing asynchronously and we don't want the WiFi reconnect
     // to happen before the configuration is saved.
     if (wifi_updated) {
         Application::getInstance()->resetWifiConnection();
+    }
+
+    if (mqtt_updated) {
+        Application::getInstance()->resetMQTTConnection();
     }
 
     request->redirect("/config.html");
@@ -305,7 +390,24 @@ String Webserver::processConfigPageHTML(const String& var)
         return this->_config.getWifiSSID();
     } else if (var == "WIFI_PASSWORD") {
         return this->_config.getWifiPassword();
+    } else if (var == "MQTT_CHECKED") {
+        if (this->_config.getMQTTEnabled()) {
+            return String("checked");
+        } else {
+            return String("");
+        }
+    } else if (var == "MQTT_SERVER") {
+        return this->_config.getMQTTServer();
+    } else if (var == "MQTT_PORT") {
+        return String(this->_config.getMQTTPort());
+    } else if (var == "MQTT_ACCOUNT") {
+        return this->_config.getMQTTAccount();
+    } else if (var == "MQTT_PASSWORD") {
+        return this->_config.getMQTTPassword();
+    } else if (var == "MQTT_DISCO_PREFIX") {
+        return this->_config.getMQTTDiscoveryPrefix();
     }
+
 
     return String();
 }

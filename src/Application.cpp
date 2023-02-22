@@ -48,7 +48,8 @@ Application::Application()
     _latestPressure(UNSET_ENVIRONMENT_VALUE),
     _latestHumidity(UNSET_ENVIRONMENT_VALUE),
     _wifiCaptivePortalMode(false),
-    _resetDeviceForNewWifi(false)
+    _resetDeviceForNewWifi(false),
+    _resetMQTTConnection(false)
 {
 #if MCU_BOARD_TYPE == MCU_YD_ESP32_S3
   Wire.begin(17,18);
@@ -151,6 +152,12 @@ void Application::resetWifiConnection(void)
 {
   this->_resetDeviceForNewWifi = true;
 }
+
+void Application::resetMQTTConnection(void)
+{
+  this->_resetMQTTConnection = true;
+}
+
 
 void Application::printLocalTime(void)
 {
@@ -405,10 +412,16 @@ void Application::loop(void)
     this->_ha.begin(_hasBME680);
     this->_wifiCaptivePortalMode = false;
     this->_resetDeviceForNewWifi = false;
+    this->_resetMQTTConnection = false;
   }
   else if (this->_wifiCaptivePortalMode) {
     this->_dnsServer.processNextRequest();
     return;
+  }
+
+  if (this->_resetMQTTConnection) {
+    this->_ha.begin(_hasBME680);
+    this->_resetMQTTConnection = false;
   }
 
   this->_ha.loop();
@@ -485,44 +498,48 @@ void Application::loop(void)
     return;
   }
 
-  if (  (!this->_config.getJSONUploadEnabled())
-      || ((timestamp - _last_transmit_time) < this->_config.getJSONUploadRateSeconds())
+  if (  (this->_config.getJSONUploadEnabled() || this->_config.getMQTTEnabled())
+      &&((timestamp - _last_transmit_time) >= this->_config.getJSONUploadRateSeconds())
     )
   {
-    return;
-  }
+    if(WiFi.status()== WL_CONNECTED) {
+      _last_transmit_time = timestamp;
 
-  if(WiFi.status()== WL_CONNECTED) {
-    _last_transmit_time = timestamp;
+      DynamicJsonDocument doc(2048);
+      getJsonPayload(doc);
 
-    DynamicJsonDocument doc(2048);
-    getJsonPayload(doc);
+      HTTPClient http;
+      String requestBody;
+      serializeJson(doc, requestBody);
 
-    HTTPClient http;
-    String requestBody;
+      if (this->_config.getJSONUploadEnabled()) {
+        Serial.print(F("    Initiating a JSON POST to: "));
+        Serial.print(this->_config.getServerURL().c_str());
+        Serial.print(F("\n"));
+        http.begin(this->_config.getServerURL());
+        http.addHeader("Content-Type", "application/json");
 
-    Serial.print(F("    Initiating a JSON POST to: "));
-    Serial.print(this->_config.getServerURL().c_str());
-    Serial.print(F("\n"));
-    http.begin(this->_config.getServerURL());
-    http.addHeader("Content-Type", "application/json");
+        int httpResponseCode = http.POST(requestBody);
+        if (httpResponseCode>0) {
+          String response = http.getString();
+          response.trim();
 
-    serializeJson(doc, requestBody);
-    int httpResponseCode = http.POST(requestBody);
-    if (httpResponseCode>0) {
-      String response = http.getString();
-      response.trim();
-
-      Serial.print(F("    POSTED data to telemetry service with response code = "));
-      Serial.print(httpResponseCode);
-      Serial.print(F(" and response = \""));
-      Serial.print(response);
-      Serial.print(F("\"\n"));
+          Serial.print(F("    POSTED data to telemetry service with response code = "));
+          Serial.print(httpResponseCode);
+          Serial.print(F(" and response = \""));
+          Serial.print(response);
+          Serial.print(F("\"\n"));
+        } else {
+          Serial.print(F("    ERROR when posting JSON = "));
+          Serial.println(httpResponseCode);
+        }
+      }
+      if (this->_config.getMQTTEnabled()) {
+        _last_transmit_time = timestamp;
+        this->_ha.publishState(requestBody);
+      }
     } else {
-      Serial.printf("    ERROR when posting JSON = %d\n", httpResponseCode);
+      Serial.println(F("    ERROR - Unable to perform JSON or MQTT push because WiFi is not connected."));
     }
-    this->_ha.publishState(requestBody);
-  } else {
-    Serial.println(F("    ERROR - Coinfigured to perform JSON upload but WiFi is not connected."));
   }
 }

@@ -85,3 +85,30 @@ String mac2String(byte ar[]) {
   }
   return s;
 }
+
+String convertNameToID(String name)
+{
+    String updatedName = name;
+    updatedName.trim();
+    updatedName.toLowerCase();
+
+    char *buffer = (char*)malloc(updatedName.length()+1);
+    updatedName.toCharArray(buffer, updatedName.length()+1);
+
+    int j = 0;
+    for (int i = 0; i < updatedName.length() + 1; i++) {
+        char c = buffer[i];
+        if (isAlphaNumeric(c) || (c == '-') || (c == 0)) {
+            buffer[j] = c;
+            j++;
+        } else if (c == ' ') {
+            buffer[j] = '_';
+            j++;
+        }
+    }
+
+    String returString = String(buffer);
+    free(buffer);
+
+    return returString;
+}

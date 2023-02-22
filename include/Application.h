@@ -46,6 +46,7 @@ private:
     DNSServer _dnsServer;
     bool _wifiCaptivePortalMode;
     bool _resetDeviceForNewWifi;
+    bool _resetMQTTConnection;
 
     void printLocalTime(void);
     void connectWifi(void);
@@ -66,6 +67,7 @@ public:
 
     void getJsonPayload(DynamicJsonDocument &doc) const;
     void resetWifiConnection(void);
+    void resetMQTTConnection(void);
     void setupLED(void);
 
     // web handlers

@@ -14,8 +14,16 @@ private:
     String _deviceHash;
 
     void pupulateDeviceInformation(DynamicJsonDocument& json);
-    void sendMQTTAQIDiscoveryMsg(void);
-    void sendMQTTTempDiscoveryMsg(void);
+    void sendSensorDiscoveryMessage(
+            String name,
+            String entity_prefix,
+            String device_class,
+            String icon,
+            String value_template,
+            String unit_of_measurement = ""
+        );
+    void sendDeviceDiscoveryMsgs(bool hasBME680);
+
 public:
     HomeAssistant(
             Configuration& config
@@ -27,6 +35,7 @@ public:
     void loop(void);
 
     void publishState(const String& stateJSONString);
+
 };
 
 

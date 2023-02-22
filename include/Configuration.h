@@ -84,6 +84,13 @@ private:
     String _wifiSSID;
     String _wifiPW;
 
+    bool _mqtt_enable;
+    String _mqtt_server;
+    uint16_t _mqtt_port;
+    String _mqtt_account;
+    String _mqtt_password;
+    String _mqtt_disco_pefix;
+
 public:
     Configuration();
     virtual ~Configuration();
@@ -95,6 +102,7 @@ public:
     void setJSONUploadEnabled(bool enabled);
 
     const String& getSensorName(void) const;
+    String getSensorID(void) const;
     void setSensorName(const String& name);
 
     uint16_t getJSONUploadRateSeconds(void) const;
@@ -109,6 +117,25 @@ public:
 
     const String& getWifiPassword(void) const;
     void setWiFiPassword(const String& ssid);
+
+    // MQTT
+    bool getMQTTEnabled(void) const;
+    void setMQTTEnabled(bool enabled);
+
+    const String& getMQTTServer(void) const;
+    void setMQTTServer(const String& server);
+
+    uint16_t getMQTTPort(void) const;
+    void setMQTTPort(uint16_t port);
+
+    const String& getMQTTAccount(void) const;
+    void setMQTTAccount(const String& account);
+
+    const String& getMQTTPassword(void) const;
+    void setMQTTPassword(const String& password);
+
+    const String& getMQTTDiscoveryPrefix(void) const;
+    void setMQTTDiscoveryPrefix(const String& password);
 };
 
 #endif // __Configuration__
