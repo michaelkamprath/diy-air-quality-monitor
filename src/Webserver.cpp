@@ -172,6 +172,8 @@ void Webserver::handleJsonRequest(AsyncWebServerRequest *request)
 
 void Webserver::handSubmitConfigRequest(AsyncWebServerRequest *request)
 {
+    bool mqtt_updated = false;
+
     this->logWebRequest(request);
     // GET input1 value on <ESP_IP>/get?input1=<inputMessage>
     if (request->hasParam("enable-json")) {
@@ -206,6 +208,7 @@ void Webserver::handSubmitConfigRequest(AsyncWebServerRequest *request)
             "  The sensor name has been set to: %s\n",
             this->_config.getSensorName().c_str()
         );
+        mqtt_updated = true;
     }
 
     if (request->hasParam("upload-rate")) {
@@ -254,8 +257,6 @@ void Webserver::handSubmitConfigRequest(AsyncWebServerRequest *request)
         }
     }
 
-    bool mqtt_updated = false;
-
     if (request->hasParam("enable-mqtt")) {
         String check_value = request->getParam("enable-mqtt")->value();
         bool original_value = this->_config.getMQTTEnabled();
@@ -272,7 +273,7 @@ void Webserver::handSubmitConfigRequest(AsyncWebServerRequest *request)
         this->_config.setMQTTEnabled(false);
     }
     Serial.printf(
-        "  The JSON telemetry upload has been %s\n",
+        "  The MQTT server connection has been %s\n",
         this->_config.getJSONUploadEnabled() ? "ENABLED" : "DISABLED"
     );
 
