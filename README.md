@@ -1,10 +1,10 @@
 # DIY Air Quality Monitor
 
-This project contains the software for a DIY air quality monitor based on the Panasonic SN-GCJA5 air quality sensor. This software is designed to run on a [TinyPICO](https://www.tinypico.com) ESP32 development board and be built by PlatformIO in Visual Code Studio.
+This project contains the software for a DIY Air Quality Monitor based on the Panasonic SN-GCJA5 air quality sensor. This software is designed to run on a [TinyPICO](https://www.tinypico.com) ESP32 development board and be built by PlatformIO in Visual Code Studio.
 
-To use this code, first edit `platformio.ini` to set the WiFi settings by replacing `YOUR_WIFI_SSID` and `YOUR_WIFI_PASSWORD` with the appropiate values, then build and upload to the ESP32 development board. The Panasonic SN-GCJA5 is connected to the ESP32 development board via it's serial connection pin (see table below).
+To use this code, you just need to build and upload to the ESP32 development board of your choice. Three ESP32 boards are supported explicitly, though the code can easily modified to support other ESP32 boards (the biggest issue here is how the board's status LED is configured). The Panasonic SN-GCJA5 is connected to the ESP32 development board via it's serial connection pin (see table below).
 
-*Currently this project very much a work in progress.*
+When the software lauches for the first time, it is in configuration mode. To configure the device, use a mobile phone to connect to the WiFi SSID named "DIY Air Quality Monitor". You will then be presented with the deive's configuration page. At a minimum, set the WiFi credential that the DIY Air Quality Monitor should connect to. It is also strongly encouraged to name the device with a unique name. Once the  DIY Air Quality Monitor is connected to your WiFi, you may connect to it at the IP address your network gave it. The web pages that the  DIY Air Quality Monitor servers includes a view at the current air quality statistics, the configuration page for the deivce, and a internal statistics page.
 
 ## Reference Material
 
@@ -54,13 +54,24 @@ Yu can view the air quality measurement by visiting the root web page of your ES
 ## Configuration
 A configuration page exists that allows you to alter some of the air quality monitor's behavior. This page is availabe at `http://your.device.ip/config.html`. The following configuration options are  available:
 
-* **Enable posting JSON telemetry** - Enables the [JSON Push](#json-push) of teletry.
-* **JSON telementry server URL** - The URL endpoint that JSON-packaged telemetry data should be POSTed to.
-* **Sensor name** - The name for this monitor. Allows the source of teletry to be identified for either the JSON POST or GET telemetry collection methods.
-* **Upload rate** - The minimum number of seconds in between telemetry transmission for the JSON Push method.
+* **WiFi SSID** - The name of the WiFi network that the device should connect to.
+* **WiFi Password** - The password of the WiFi network that the device should connect to.
+* **Sensor name** - The name for this monitor. Allows the source of teletry to be identified for either the JSON POST or the MQTT service.
 * **LED Brightness** - Allows adjusting the brightness of the air quality indicator LED on the ESP32 development board.
+* **Enable MQTT Connection** - Enables the MQTT service to allow the device to communicate with Home Assistant.
+* **MQTT Server** - The MQTT server address.
+* **MQTT Port** - The MQTT server port. Defaults to 1883.
+* **MQTT Account** - The account name for connecting to the MQTT server. Leave blank if there is no account.
+* **MQTT Password** - The password for connecting to the MQTT server. Leave blank if there is no password.
+* **Discovery Prefix** - The discovery prefix for MQTT. Defaults to `homeassistant`. Only change if you know what you are doing.
+* **Enable posting JSON telemetry** - Enables the [JSON Push](#json-push) of teletry.
+* **JSON telementry server URL** - The URL endpoint that JSON-packaged telemetry data should be POSTed to. Also used for the MQTT update rate.
+* **Upload rate** - The minimum number of seconds in between telemetry transmission for the JSON Push method.
 
 ## Data Collection
+
+### Home Assistant
+This air quality monitor can be used as a sensor for [Home Assistant](https://www.home-assistant.io) or with a MQTT-based service. This is done by setting up an MQTT server connection in the configuration page of the sensor's web interface.  At a minimum you need to anable the MQTT connection and set the MQTT server address. You may also need to set the MQTT server login and password if your MQTT server requires that. Finally, by default the DIY Air Quality Monitor is configured to be automatically discovered by Home Assistant if your Home Assistant service is connected to the same MQTT server. If you know what you are doing, you can change the discovery prefix, but note that the discovery config will still be formatted for Home Assistant even if you change the prefix.
 
 ### JSON Push
 This code has the option to POST all of the granular and detailed data collected from the connected sensors to a data collection service in a JSON format for later analysis. This is done by editing the JSON Telemetry options in the configuration web page hosted by the ESP32 development board. A recommended data collection service is the [Simple JSON Collector Service](https://github.com/michaelkamprath/simple-json-collector-service).
@@ -70,30 +81,6 @@ Note that this setting can be edited live on the device by visting the `http://y
 ### Grafana
 A Grafa-based data collection service can be set up to pull data from the air quality monitor. See [the grafana directory](grafana/) for more information.
 
-### Home Assistant
-This air quality monitor can be used as a sensor for [Home Assistant](https://www.home-assistant.io) with no further modification. This is done by having your Home Assistant server polling the DIY Air Quality Monitor device. You will need to manually edit the `configuration.yaml` for your Home Assistant server to add a RESTful sensor. Here is an example snippet from adding the air quality and BME680 temperature values:
-```yaml
-rest:
-  - scan_interval: 60
-    resource: http://your.device.ip/json
-    sensor:
-      - name: "DIY Air Quality Index"
-        device_class: aqi
-        json_attributes:
-          - "sensor_id"
-          - "uptime"
-        unique_id: "diy-air-quality-aqi"
-        value_template: "{{ value_json.air_quality_index.aqi_1hour.value }}"
-      - name: "DIY Air Quality Temperature"
-        device_class: temperature
-        json_attributes:
-          - "sensor_id"
-          - "uptime"
-        unique_id: "diy-air-quality-temperature"
-        value_template: "{{ value_json.environment.temperature_f.value }}"
-        unit_of_measurement: "°F"
-```
-Other values found in the status JSON can be added as a sensor in similar fashion.
 # TODO
 The following features are planned. Listed in no particular order.
 
@@ -107,6 +94,5 @@ The following features are planned. Listed in no particular order.
    * Display a warning based on the color code of the AQI
    * Display the BME 680 sensor data, if attached.
    * Display the web UI URL
-5. Create a web UI to set up and configure the monitor, replacing the `Configuration.h` file. Would depend on ePaper display to display the temporary WiFi AP the user needs to connect to to configure.
-   * _This has been started. Go to the web page `http://your.device.ip/config.html` on your ESP32 device._
+5. ~~Create a web UI to set up and configure the monitor, replacing the `Configuration.h` file. Would depend on ePaper display to display the temporary WiFi AP the user needs to connect to to configure.~~
 6. Add ability to download history as a CSV from web UI.
