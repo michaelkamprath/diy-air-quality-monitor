@@ -13,7 +13,7 @@ private:
     String _stateTopic;
     String _deviceHash;
 
-    void pupulateDeviceInformation(DynamicJsonDocument& json);
+    void populateDeviceInformation(DynamicJsonDocument& json);
     void sendSensorDiscoveryMessage(
             String name,
             String entity_prefix,

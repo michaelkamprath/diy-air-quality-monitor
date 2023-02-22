@@ -2,7 +2,7 @@
 #include <WiFiAP.h>
 #include "HomeAssistant.h"
 #include "Utilities.h"
-
+#include "Application.h"
 
 HomeAssistant::HomeAssistant(
     Configuration& config
@@ -71,6 +71,7 @@ void HomeAssistant::publishState(const String& stateJSONString)
         } else {
             Serial.println(F("ERROR - failed to publish state to MQTT with connection state = "));
             Serial.println(_client.state());
+            Application::getInstance()->resetMQTTConnection();
         }
     }
 }
@@ -82,7 +83,7 @@ void HomeAssistant::loop()
     }
 }
 
-void HomeAssistant::pupulateDeviceInformation(DynamicJsonDocument& json)
+void HomeAssistant::populateDeviceInformation(DynamicJsonDocument& json)
 {
     JsonObject device = json.createNestedObject("device");
     JsonArray identifiers = device.createNestedArray("identifiers");
@@ -134,7 +135,7 @@ void HomeAssistant::sendSensorDiscoveryMessage(
     if (unit_of_measurement.length() > 0) {
         doc["unit_of_measurement"] = unit_of_measurement;
     }
-    pupulateDeviceInformation(doc);
+    populateDeviceInformation(doc);
     size_t n = serializeJson(doc, config_str);
 
     if (_client.publish(discoveryTopic.c_str(), config_str.c_str(), true)) {

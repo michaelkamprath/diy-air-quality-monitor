@@ -420,6 +420,7 @@ void Application::loop(void)
   }
 
   if (this->_resetMQTTConnection) {
+    Serial.println(F("Resetting the MQTT connection ..."));
     this->_ha.begin(_hasBME680);
     this->_resetMQTTConnection = false;
   }
