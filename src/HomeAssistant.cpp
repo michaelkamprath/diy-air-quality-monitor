@@ -153,14 +153,14 @@ void HomeAssistant::sendDeviceDiscoveryMsgs(bool hasBME680)
             "10_minute_aqi_",
             "aqi",
             "mdi:air-filter",
-            "{{ value_json.air_quality_index.average_pm2p5_10min.value|default(0) }}"
+            "{{ value_json.air_quality_index.average_pm2p5_10min.value|round(1)|default(0) }}"
         );
     sendSensorDiscoveryMessage(
             "2.5 µm Particulate Density",
             "10_minute_pm25_",
             "pm25",
             "mdi:weather-dust",
-            "{{ value_json.air_quality_index.average_pm2p5_10min.value|default(0) }}",
+            "{{ value_json.air_quality_index.average_pm2p5_10min.value|round(2)|default(0) }}",
             "µg/m³"
         );
     if (hasBME680) {
@@ -169,7 +169,7 @@ void HomeAssistant::sendDeviceDiscoveryMsgs(bool hasBME680)
                 "temperature_f_",
                 "temperature",
                 "mdi:thermometer",
-                "{{ value_json.environment.temperature_f.value|default(0) }}",
+                "{{ value_json.environment.temperature_f.value|round(1)|default(0) }}",
                  "°F"
             );
         sendSensorDiscoveryMessage(
@@ -177,7 +177,7 @@ void HomeAssistant::sendDeviceDiscoveryMsgs(bool hasBME680)
                 "pressure_",
                 "pressure",
                 "mdi:gauge",
-                "{{ value_json.environment.pressure.value|default(0) }}",
+                "{{ value_json.environment.pressure.value|round(2)|default(0) }}",
                  "hPa"
             );
         sendSensorDiscoveryMessage(
@@ -185,7 +185,7 @@ void HomeAssistant::sendDeviceDiscoveryMsgs(bool hasBME680)
                 "humidity_",
                 "humidity",
                 "mdi:cloud-percent-outline",
-                "{{ value_json.environment.pressure.value|default(0) }}",
+                "{{ value_json.environment.humidity.value|round(1)|default(0) }}",
                  "%"
             );
     }
