@@ -14,6 +14,7 @@ private:
     String _deviceHash;
 
     void populateDeviceInformation(DynamicJsonDocument& json);
+    void reconnectClient(void);
     void sendSensorDiscoveryMessage(
             String name,
             String entity_prefix,
