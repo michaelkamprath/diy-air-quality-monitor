@@ -153,7 +153,8 @@ void HomeAssistant::sendDeviceDiscoveryMsgs(bool hasBME680)
             "10_minute_aqi_",
             "aqi",
             "mdi:air-filter",
-            "{{ value_json.air_quality_index.average_pm2p5_10min.value|round(1)|default(0) }}"
+            "{{ value_json.air_quality_index.aqi_10min.value|round(1)|default(0) }}",
+            "units"
         );
     sendSensorDiscoveryMessage(
             "2.5 µm Particulate Density",
