@@ -65,8 +65,8 @@ A configuration page exists that allows you to alter some of the air quality mon
 * **MQTT Password** - The password for connecting to the MQTT server. Leave blank if there is no password.
 * **Discovery Prefix** - The discovery prefix for MQTT. Defaults to `homeassistant`. Only change if you know what you are doing.
 * **Enable posting JSON telemetry** - Enables the [JSON Push](#json-push) of teletry.
-* **JSON telementry server URL** - The URL endpoint that JSON-packaged telemetry data should be POSTed to. Also used for the MQTT update rate.
-* **Upload rate** - The minimum number of seconds in between telemetry transmission for the JSON Push method.
+* **JSON telementry server URL** - The URL endpoint that JSON-packaged telemetry data should be POSTed to.
+* **Upload rate** - The minimum number of seconds in between telemetry transmission for the JSON Push method. Also used for the MQTT update rate.
 
 ## Data Collection
 
