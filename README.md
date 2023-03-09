@@ -49,7 +49,7 @@ This code's default confuration for the serial `RX` pin that will be used to rec
 The included software for the ESP32 development board launches a web server that hosts a few pages which allow interaction with the air quality monitor. About a minute after the device connects to the configured WiFi (this is required for the Panasonic SN-GCJA5 start up sequence), the webserver will be come active and you may visit the pages at the IP address assigned by the DHCP server of your WiFi service. It is recomended (though not required) that you implement a static IP address for your ESP32 development board in your DHCP server's configuration.
 
 ## Viewing Status
-Yu can view the air quality measurement by visiting the root web page of your ESP32 device's IP address, that is `http://your.device.ip/`.
+You can view the air quality measurement by visiting the root web page of your ESP32 device's IP address, that is `http://your.device.ip/`.
 
 ## Configuration
 A configuration page exists that allows you to alter some of the air quality monitor's behavior. This page is availabe at `http://your.device.ip/config.html`. The following configuration options are  available:

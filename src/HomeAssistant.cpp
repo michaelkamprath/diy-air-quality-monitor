@@ -100,6 +100,7 @@ void HomeAssistant::populateDeviceInformation(DynamicJsonDocument& json)
     JsonArray connections = device.createNestedArray("connections");
     device["name"] = _config.getSensorName();
     device["model"] = "DIY Air Quality Sensor";
+    device["configuration_url"] = String("http://") + WiFi.localIP().toString() + "/config.html";
 #if MCU_BOARD_TYPE == MCU_TINYPICO
     device["hw_version"] = "TinyPICO";
 #elif MCU_BOARD_TYPE == MCU_EZSBC_IOT
