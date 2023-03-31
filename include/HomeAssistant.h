@@ -11,6 +11,8 @@ private:
     WiFiClient _wifi;
     PubSubClient _client;
     String _stateTopic;
+    String _commandTopic;
+    String _ledBrightnessTopic;
     String _deviceHash;
 
     void populateDeviceInformation(DynamicJsonDocument& json);
@@ -25,6 +27,7 @@ private:
         );
     void sendDeviceDiscoveryMsgs(bool hasBME680);
 
+    void mqttCallback(char* topic, byte* message, unsigned int length);
 public:
     HomeAssistant(
             Configuration& config

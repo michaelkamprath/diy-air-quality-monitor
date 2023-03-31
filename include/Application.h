@@ -61,6 +61,7 @@ public:
     virtual ~Application();
     void setup(void);
     void loop(void);
+    void reboot(void);
 
     AirQualitySensor& sensor(void)          { return _sensor; }
     Webserver& webServer(void)              { return _webServer; }

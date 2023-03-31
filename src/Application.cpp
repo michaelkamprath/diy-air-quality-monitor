@@ -158,6 +158,10 @@ void Application::resetMQTTConnection(void)
   this->_resetMQTTConnection = true;
 }
 
+void Application::reboot(void)
+{
+  ESP.restart();
+}
 
 void Application::printLocalTime(void)
 {

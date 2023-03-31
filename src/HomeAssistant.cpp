@@ -10,6 +10,8 @@ HomeAssistant::HomeAssistant(
     _wifi(),
     _client(_wifi),
     _stateTopic(),
+    _commandTopic(),
+    _ledBrightnessTopic(),
     _deviceHash()
 {
     _client.setBufferSize(2048);
@@ -29,7 +31,10 @@ void HomeAssistant::begin(bool hasBME680)
 {
     stop();
     if (_config.getMQTTEnabled()) {
-        _stateTopic = String("diy_air_quality_sensor/") + _config.getSensorID() + String("/state");
+        String topic_prefix = String("diy_air_quality_sensor/") + _config.getSensorID();
+        _stateTopic = topic_prefix + String("/state");
+        _commandTopic = topic_prefix + String("/command");
+        _ledBrightnessTopic = topic_prefix + String("/led_brightness");
         reconnectClient();
         sendDeviceDiscoveryMsgs(hasBME680);
     }
@@ -49,8 +54,11 @@ void HomeAssistant::reconnectClient(void) {
         if (_client.connect("DIY Air Quality Sensor", account_ptr, password_ptr)) {
             // keep alive for at least 10 minutes
             _client.setKeepAlive(600);
-            Serial.print(F("\nConnected to MQTT with state topic = "));
             Serial.println(_stateTopic);
+            _client.setCallback(std::bind(&HomeAssistant::mqttCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+            _client.subscribe(_commandTopic.c_str());
+            _client.subscribe(_ledBrightnessTopic.c_str());
+            Serial.print(F("\nConnected to MQTT with state topic = "));
         } else {
             Serial.println(F("\nERROR - failed MQTT connections with state "));
             Serial.println(_client.state());
@@ -62,6 +70,9 @@ void HomeAssistant::reconnectClient(void) {
 void HomeAssistant::stop(void)
 {
     if (_client.connected()) {
+        _client.unsubscribe(_commandTopic.c_str());
+        _client.unsubscribe(_ledBrightnessTopic.c_str());
+        _client.setCallback(nullptr);
         _client.disconnect();
         _stateTopic = String();
     }
@@ -202,4 +213,34 @@ void HomeAssistant::sendDeviceDiscoveryMsgs(bool hasBME680)
             );
     }
 
+}
+void HomeAssistant::mqttCallback(char* topic, byte* message, unsigned int length) {
+    Serial.print(F("MQTT: Message arrived on topic: "));
+    Serial.print(topic);
+    Serial.print(F(". Message: "));
+    String messageTemp;
+
+    for (int i = 0; i < length; i++) {
+        Serial.print((char)message[i]);
+        messageTemp += (char)message[i];
+    }
+    Serial.println();
+
+    if (String(topic) == _commandTopic) {
+        if (messageTemp == "reboot") {
+            Serial.println(F("Rebooting device"));
+            Application::getInstance()->reboot();
+        } else if (messageTemp == "reconnect_mqtt") {
+            Serial.println(F("Reconnecting to MQTT"));
+            Application::getInstance()->resetMQTTConnection();
+        } else if (messageTemp == "reconnect_wifi") {
+            Serial.println(F("Reconnecting to WiFi"));
+            Application::getInstance()->resetWifiConnection();
+        }
+    } else if (String(topic) == _ledBrightnessTopic) {
+        int brightness = messageTemp.toInt();
+        Serial.printf("Setting LED brightness to %d\n", brightness);
+        _config.setLEDBrightnessIndex(brightness);
+        Application::getInstance()->setupLED();
+    }
 }
