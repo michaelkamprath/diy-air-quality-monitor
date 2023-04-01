@@ -25,6 +25,7 @@ private:
             String value_template,
             String unit_of_measurement = ""
         );
+    void sendLEDBrightnessDiscoveryMessage(void);
     void sendDeviceDiscoveryMsgs(bool hasBME680);
 
     void mqttCallback(char* topic, byte* message, unsigned int length);

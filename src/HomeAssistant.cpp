@@ -52,13 +52,14 @@ void HomeAssistant::reconnectClient(void) {
         Serial.print(".");
 
         if (_client.connect("DIY Air Quality Sensor", account_ptr, password_ptr)) {
-            // keep alive for at least 10 minutes
-            _client.setKeepAlive(600);
+            // keep alive for at least 1 hour
+            _client.setKeepAlive(3600);
             Serial.println(_stateTopic);
             _client.setCallback(std::bind(&HomeAssistant::mqttCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
             _client.subscribe(_commandTopic.c_str());
             _client.subscribe(_ledBrightnessTopic.c_str());
             Serial.print(F("\nConnected to MQTT with state topic = "));
+            Serial.println(_stateTopic);
         } else {
             Serial.println(F("\nERROR - failed MQTT connections with state "));
             Serial.println(_client.state());
@@ -100,6 +101,9 @@ void HomeAssistant::publishState(const String& stateJSONString)
 void HomeAssistant::loop()
 {
     if (_config.getMQTTEnabled()) {
+        if (!_client.connected()) {
+            reconnectClient();
+        }
         _client.loop();
     }
 }
@@ -168,6 +172,38 @@ void HomeAssistant::sendSensorDiscoveryMessage(
     }
 }
 
+void HomeAssistant::sendLEDBrightnessDiscoveryMessage(void) {
+    String entity_id = "led_brightness_" + _deviceHash;
+    String discoveryTopic = _config.getMQTTDiscoveryPrefix()
+                    + String("/select/")
+                    + entity_id
+                    + String("/config");
+
+    DynamicJsonDocument doc(1500);
+    String config_str;
+    doc["name"] = "LED Brightness";
+    doc["object_id"] = entity_id;
+    doc["unique_id"] = entity_id;
+    doc["icon"] = "mdi:led-on";
+    doc["entity_category"] = "config";
+    doc["command_topic"] = _ledBrightnessTopic;
+    JsonArray options = doc.createNestedArray("options");
+    options.add("Off");
+    options.add("Low");
+    options.add("Medium");
+    options.add("Bright");
+
+    populateDeviceInformation(doc);
+    size_t n = serializeJson(doc, config_str);
+
+    if (_client.publish(discoveryTopic.c_str(), config_str.c_str(), true)) {
+        Serial.printf("MQTT published discovery topic for entity %s\n", entity_id.c_str());
+    } else {
+        Serial.print(F("ERROR - Failed to publish MQTT discovery topic. client state = "));
+        Serial.println(_client.state());
+    }
+}
+
 void HomeAssistant::sendDeviceDiscoveryMsgs(bool hasBME680)
 {
     sendSensorDiscoveryMessage(
@@ -186,6 +222,7 @@ void HomeAssistant::sendDeviceDiscoveryMsgs(bool hasBME680)
             "{{ value_json.air_quality_index.average_pm2p5_10min.value|round(2)|default(0) }}",
             "µg/m³"
         );
+    sendLEDBrightnessDiscoveryMessage();
     if (hasBME680) {
         sendSensorDiscoveryMessage(
                 "Temperature",
@@ -238,7 +275,16 @@ void HomeAssistant::mqttCallback(char* topic, byte* message, unsigned int length
             Application::getInstance()->resetWifiConnection();
         }
     } else if (String(topic) == _ledBrightnessTopic) {
-        int brightness = messageTemp.toInt();
+        int brightness = 0;
+        if (messageTemp == "Off") {
+            brightness = 0;
+        } else if (messageTemp == "Low") {
+            brightness = 1;
+        } else if (messageTemp == "Medium") {
+            brightness = 2;
+        } else if (messageTemp == "Bright") {
+            brightness = 3;
+        }
         Serial.printf("Setting LED brightness to %d\n", brightness);
         _config.setLEDBrightnessIndex(brightness);
         Application::getInstance()->setupLED();
