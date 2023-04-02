@@ -321,6 +321,8 @@ void Application::getJsonPayload(DynamicJsonDocument &doc) const {
     doc["environment"]["gas_resistance"]["value"] = _bme680.gas_resistance;  // ohms
   }
 
+  doc["config"]["led_brightness"] = _config.getLEDBrightnessName();
+
   // The DynamicJsonDocument object doesn't resize itelf, so if you construct it with a too small
   // memory capacity it won't include all data - specifically the final few items (e.g. gas_resistance)
   // may not be returned.

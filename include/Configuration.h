@@ -110,6 +110,7 @@ public:
 
     uint8_t getLEDBrightnessValue(void) const;
     uint8_t getLEDBrightnessIndex(void) const;
+    String getLEDBrightnessName(void) const;
     void setLEDBrightnessIndex(uint8_t index);
 
     const String& getWifiSSID(void) const;

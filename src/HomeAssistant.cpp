@@ -192,7 +192,8 @@ void HomeAssistant::sendLEDBrightnessDiscoveryMessage(void) {
     options.add("Low");
     options.add("Medium");
     options.add("Bright");
-
+    doc["state_topic"] = _stateTopic;
+    doc["value_template"] =  "{{ value_json.config.led_brightness}}";
     populateDeviceInformation(doc);
     size_t n = serializeJson(doc, config_str);
 

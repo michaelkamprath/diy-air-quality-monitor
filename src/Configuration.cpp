@@ -269,6 +269,24 @@ void Configuration::setLEDBrightnessIndex(uint8_t index)
     EEPROM.commit();
 }
 
+String Configuration::getLEDBrightnessName(void) const
+{
+    switch (this->getLEDBrightnessIndex()) {
+        // off
+        case 0:
+            return String("Off");
+        // low
+        case 1:
+            return String("Low");
+        // medium
+        default:
+        case 2:
+            return String("Medium");
+        case 3:
+            return String("Bright");
+    }
+}
+
 const String& Configuration::getWifiSSID(void) const {
     return this->_wifiSSID;
 }
