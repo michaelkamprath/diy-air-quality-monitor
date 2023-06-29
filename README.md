@@ -1,6 +1,6 @@
 # DIY Air Quality Monitor
 
-This project contains the software for a DIY Air Quality Monitor based on the Panasonic SN-GCJA5 air quality sensor. This software is designed to run on a [TinyPICO](https://www.tinypico.com) ESP32 development board and be built by PlatformIO in Visual Code Studio.
+This project contains the software for a DIY Air Quality Monitor based on the [Panasonic SN-GCJA5 air quality sensor](https://www.mouser.com/ProductDetail/667-SN-GCJA5). This software is designed to run on an ESP32 development board, such as the [TinyPICO](https://www.tinypico.com), and be built by [PlatformIO](https://platformio.org) in [Visual Code Studio](https://code.visualstudio.com).
 
 To use this code, you just need to build and upload to the ESP32 development board of your choice. Three ESP32 boards are supported explicitly, though the code can easily modified to support other ESP32 boards (the biggest issue here is how the board's status LED is configured). The Panasonic SN-GCJA5 is connected to the ESP32 development board via it's serial connection pin (see table below).
 
@@ -9,7 +9,7 @@ When the software lauches for the first time, it is in configuration mode. To co
 ## Reference Material
 
 * [Panasonic SN-GCJA5 Product Specification](https://na.industrial.panasonic.com/products/sensors/air-quality-gas-flow-sensors/lineup/laser-type-pm-sensor/series/123557/model/123559)
-* [Panasonic SN-GCJA5 Communications Specification](https://b2b-api.panasonic.eu/file_stream/pids/fileversion/8814)
+* [Panasonic SN-GCJA5 Communications Specification](https://api.pim.na.industrial.panasonic.com/file_stream/main/fileversion/244938)
 
 ## Bill of Materials
 To build this project, you will need the folloing components:
