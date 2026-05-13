@@ -8,7 +8,7 @@
   <body>
     <div id="content" class="content">
       <div class="title">DIY Air Quality Monitor Configuration</div>
-        <form action="/update" method="get" class="config-form">
+        <form action="/update" method="post" class="config-form">
 
           <div class="config-frame">
             <div class="section-title">WiFi Connection</div>
@@ -18,7 +18,7 @@
             </div>
             <div class="form-item" style="margin-bottom: 0px;">
               WiFi Password:</br>
-              <input type="password" name="wifi-password" maxlength=64 value="^WIFI_PASSWORD^">
+              <input type="password" name="wifi-password" maxlength=64 value="" placeholder="Leave blank to keep current password">
             </div>
           </div>
 
@@ -72,7 +72,7 @@
             </div>
             <div class="form-item">
               Password: </br>
-              <input type="password" name="mqtt-password" maxlength=32 value="^MQTT_PASSWORD^">
+              <input type="password" name="mqtt-password" maxlength=32 value="" placeholder="Leave blank to keep current password">
             </div>
             <div class="form-item" style="margin-bottom: 0px;">
               Discovery Prefix: </br>

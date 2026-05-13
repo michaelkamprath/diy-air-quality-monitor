@@ -30,6 +30,19 @@ void test_calculatePartialOrderedAverage( void ) {
 
 }
 
+void test_calculatePartialOrderedAverage_emptyInputs( void ) {
+    uint16_t storage[1] = {42};
+    Vector<uint16_t> empty_data;
+    empty_data.setStorage(storage, 1, 0);
+
+    TEST_ASSERT_EQUAL_FLOAT(0.0, calculatePartialOrderedAverage(empty_data, (size_t)0, (size_t)1));
+
+    uint16_t test_array[3] = {10, 20, 30};
+    Vector<uint16_t> test_data(test_array, 3);
+    TEST_ASSERT_EQUAL_FLOAT(0.0, calculatePartialOrderedAverage(test_data, (size_t)2, (size_t)0));
+    TEST_ASSERT_EQUAL_FLOAT(30.0, calculatePartialOrderedAverage(test_data, (size_t)99, (size_t)1));
+}
+
 void test_convertEpochToString( void ) {
     time_t time1 = 1604112527;
     String time1str = "Sat 2020-10-31 02:48:47 GMT";
@@ -45,5 +58,18 @@ void test_convertNameToID( void ) {
     String test2(" This-IS-the best? ");
     String res2 = convertNameToID(test2);
     TEST_ASSERT_EQUAL_STRING(res2.c_str(), "this-is-the_best");
+}
+
+void test_shouldUpdateSecret( void ) {
+    TEST_ASSERT_FALSE(shouldUpdateSecret(String(""), false, false));
+    TEST_ASSERT_TRUE(shouldUpdateSecret(String("new-secret"), false, false));
+    TEST_ASSERT_TRUE(shouldUpdateSecret(String(""), true, false));
+    TEST_ASSERT_TRUE(shouldUpdateSecret(String(""), false, true));
+}
+
+void test_buildMQTTClientID( void ) {
+    String clientID = buildMQTTClientID(String("AABBCCDDEEFF"));
+    TEST_ASSERT_EQUAL_STRING("diy-aqi-AABBCCDDEEFF", clientID.c_str());
+    TEST_ASSERT_FALSE(clientID == String("DIY Air Quality Sensor"));
 }
 #endif

@@ -22,7 +22,11 @@ float calculatePartialOrderedAverage( const Vector<uint16_t>& data, size_t start
     // purposes of what this value is used for, which is to determine when the AQI is based on 
     // a 24 hour average, thiscaveat isn't really that important. Just acknowledging it exists.
 
-    size_t curr_idx = start_idx;
+    if ((data.size() == 0) || (number_of_values == 0)) {
+        return 0.0;
+    }
+
+    size_t curr_idx = (start_idx < data.size()) ? start_idx : data.size() - 1;
     size_t value_count = 0;
     uint32_t running_sum = 0;
 
@@ -37,6 +41,16 @@ float calculatePartialOrderedAverage( const Vector<uint16_t>& data, size_t start
     }
 
     return (float)running_sum/(float)value_count;
+}
+
+bool shouldUpdateSecret(const String& submittedSecret, bool endpointChanged, bool storedSecretEmpty)
+{
+    return (submittedSecret.length() > 0) || endpointChanged || storedSecretEmpty;
+}
+
+String buildMQTTClientID(const String& deviceHash)
+{
+    return String("diy-aqi-") + deviceHash;
 }
 
 String convertEpochToString(time_t epoch_time)

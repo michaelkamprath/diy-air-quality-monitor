@@ -21,6 +21,11 @@ void print_buffer( const uint8_t* buffer, uint8_t size);
 // item in the Vector and continue from there.
 float calculatePartialOrderedAverage( const Vector<uint16_t>& data, size_t start_idx, size_t number_of_values );
 
+// Returns true when a submitted password/secret should replace the saved value.
+bool shouldUpdateSecret(const String& submittedSecret, bool endpointChanged, bool storedSecretEmpty);
+
+String buildMQTTClientID(const String& deviceHash);
+
 String convertEpochToString(time_t epoch_time);
 
 // returns the HTTP content type based on filename extension

@@ -12,8 +12,11 @@ void setup() {
 
     UNITY_BEGIN();
     RUN_TEST(test_calculatePartialOrderedAverage);
+    RUN_TEST(test_calculatePartialOrderedAverage_emptyInputs);
     RUN_TEST(test_convertEpochToString);
     RUN_TEST(test_convertNameToID);
+    RUN_TEST(test_shouldUpdateSecret);
+    RUN_TEST(test_buildMQTTClientID);
     RUN_TEST(test_getAQIStatusColor);
     UNITY_END();
 }

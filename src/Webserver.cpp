@@ -58,7 +58,7 @@ void Webserver::startCaptivePortal(const IPAddress& serverIP)
     _server.on("/hotspot-detect.html", HTTP_GET, std::bind(&Webserver::handleHotspotDectect, this, std::placeholders::_1));
     _server.on("/generate_204", HTTP_GET, std::bind(&Webserver::handleHotspotDectect, this, std::placeholders::_1));
     _server.on("/config.html", HTTP_GET, std::bind(&Webserver::handleConfigPageRequest, this, std::placeholders::_1));
-    _server.on("/update", HTTP_GET, std::bind(&Webserver::handSubmitConfigRequest, this, std::placeholders::_1));
+    _server.on("/update", HTTP_POST, std::bind(&Webserver::handSubmitConfigRequest, this, std::placeholders::_1));
     _server.onNotFound(std::bind(&Webserver::handleUnassignedPath, this, std::placeholders::_1));
     _server.begin();
 }
@@ -72,7 +72,7 @@ void Webserver::startNormal(void)
     _server.on("/stats.html", HTTP_GET, std::bind(&Webserver::handleStatsPageRequest, this, std::placeholders::_1));
     _server.on("/json", HTTP_GET, std::bind(&Webserver::handleJsonRequest, this, std::placeholders::_1));
     _server.on("/config.html", HTTP_GET, std::bind(&Webserver::handleConfigPageRequest, this, std::placeholders::_1));
-    _server.on("/update", HTTP_GET, std::bind(&Webserver::handSubmitConfigRequest, this, std::placeholders::_1));
+    _server.on("/update", HTTP_POST, std::bind(&Webserver::handSubmitConfigRequest, this, std::placeholders::_1));
 
     _server.onNotFound(std::bind(&Webserver::handleUnassignedPath, this, std::placeholders::_1));
 
@@ -173,11 +173,18 @@ void Webserver::handleJsonRequest(AsyncWebServerRequest *request)
 void Webserver::handSubmitConfigRequest(AsyncWebServerRequest *request)
 {
     bool mqtt_updated = false;
+    bool mqtt_endpoint_updated = false;
+
+    auto hasFormParam = [request](const char* name) {
+        return request->hasParam(name, true);
+    };
+    auto formParamValue = [request](const char* name) {
+        return request->getParam(name, true)->value();
+    };
 
     this->logWebRequest(request);
-    // GET input1 value on <ESP_IP>/get?input1=<inputMessage>
-    if (request->hasParam("enable-json")) {
-        String check_value = request->getParam("enable-json")->value();
+    if (hasFormParam("enable-json")) {
+        String check_value = formParamValue("enable-json");
         if (check_value == "on") {
             this->_config.setJSONUploadEnabled(true);
         } else {
@@ -192,8 +199,8 @@ void Webserver::handSubmitConfigRequest(AsyncWebServerRequest *request)
         this->_config.getJSONUploadEnabled() ? "ENABLED" : "DISABLED"
     );
 
-    if (request->hasParam("server-url")) {
-        String server_url = request->getParam("server-url")->value();
+    if (hasFormParam("server-url")) {
+        String server_url = formParamValue("server-url");
         this->_config.setServerURL(server_url);
         Serial.printf(
             "  The JSON telemetry upload URL has been set to: %s\n",
@@ -201,8 +208,8 @@ void Webserver::handSubmitConfigRequest(AsyncWebServerRequest *request)
         );
     }
 
-    if (request->hasParam("sensor-name")) {
-        String sensor_name = request->getParam("sensor-name")->value();
+    if (hasFormParam("sensor-name")) {
+        String sensor_name = formParamValue("sensor-name");
         this->_config.setSensorName(sensor_name);
         Serial.printf(
             "  The sensor name has been set to: %s\n",
@@ -211,8 +218,8 @@ void Webserver::handSubmitConfigRequest(AsyncWebServerRequest *request)
         mqtt_updated = true;
     }
 
-    if (request->hasParam("upload-rate")) {
-        String rate_str = request->getParam("upload-rate")->value();
+    if (hasFormParam("upload-rate")) {
+        String rate_str = formParamValue("upload-rate");
         int16_t rate_val = rate_str.toInt();
         this->_config.setJSONUploadRateSeconds(rate_val);
         Serial.printf(
@@ -221,8 +228,8 @@ void Webserver::handSubmitConfigRequest(AsyncWebServerRequest *request)
         );
     }
 
-    if (request->hasParam("led-brightness")) {
-        String value_str = request->getParam("led-brightness")->value();
+    if (hasFormParam("led-brightness")) {
+        String value_str = formParamValue("led-brightness");
         int16_t value = value_str.toInt();
         this->_config.setLEDBrightnessIndex(value);
         Serial.printf(
@@ -233,8 +240,9 @@ void Webserver::handSubmitConfigRequest(AsyncWebServerRequest *request)
     }
 
     bool wifi_updated = false;
-    if (request->hasParam("wifi-ssid")) {
-        String wifi_ssid = request->getParam("wifi-ssid")->value();
+    bool wifi_ssid_updated = false;
+    if (hasFormParam("wifi-ssid")) {
+        String wifi_ssid = formParamValue("wifi-ssid");
         if (!this->_config.getWifiSSID().equals(wifi_ssid)) {
             this->_config.setWiFiSSID(wifi_ssid);
             Serial.printf(
@@ -242,23 +250,23 @@ void Webserver::handSubmitConfigRequest(AsyncWebServerRequest *request)
                 this->_config.getWifiSSID().c_str()
             );
             wifi_updated = true;
+            wifi_ssid_updated = true;
         }
     }
 
-    if (request->hasParam("wifi-password")) {
-        String wifi_pw = request->getParam("wifi-password")->value();
-        if (!this->_config.getWifiPassword().equals(wifi_pw)) {
+    if (hasFormParam("wifi-password")) {
+        String wifi_pw = formParamValue("wifi-password");
+        if (shouldUpdateSecret(wifi_pw, wifi_ssid_updated, this->_config.getWifiPassword().length() == 0)) {
+          if (!this->_config.getWifiPassword().equals(wifi_pw)) {
             this->_config.setWiFiPassword(wifi_pw);
-            Serial.printf(
-                "  The WiFi password has been set to: %s\n",
-                this->_config.getWifiPassword().c_str()
-            );
+            Serial.println(F("  The WiFi password has been updated."));
             wifi_updated = true;
+          }
         }
     }
 
-    if (request->hasParam("enable-mqtt")) {
-        String check_value = request->getParam("enable-mqtt")->value();
+    if (hasFormParam("enable-mqtt")) {
+        String check_value = formParamValue("enable-mqtt");
         bool original_value = this->_config.getMQTTEnabled();
         if (check_value == "on") {
             this->_config.setMQTTEnabled(true);
@@ -274,11 +282,11 @@ void Webserver::handSubmitConfigRequest(AsyncWebServerRequest *request)
     }
     Serial.printf(
         "  The MQTT server connection has been %s\n",
-        this->_config.getJSONUploadEnabled() ? "ENABLED" : "DISABLED"
+        this->_config.getMQTTEnabled() ? "ENABLED" : "DISABLED"
     );
 
-    if (request->hasParam("mqtt-server")) {
-        String mqtt_server = request->getParam("mqtt-server")->value();
+    if (hasFormParam("mqtt-server")) {
+        String mqtt_server = formParamValue("mqtt-server");
         mqtt_server.trim();
         if (!this->_config.getMQTTServer().equals(mqtt_server)) {
             this->_config.setMQTTServer(mqtt_server);
@@ -287,11 +295,12 @@ void Webserver::handSubmitConfigRequest(AsyncWebServerRequest *request)
                 this->_config.getMQTTServer().c_str()
             );
             mqtt_updated = true;
+            mqtt_endpoint_updated = true;
         }
     }
 
-    if (request->hasParam("mqtt-port")) {
-        String port_str = request->getParam("mqtt-port")->value();
+    if (hasFormParam("mqtt-port")) {
+        String port_str = formParamValue("mqtt-port");
         uint16_t port_value = port_str.toInt();
         if (this->_config.getMQTTPort() != port_value) {
             this->_config.setMQTTPort(port_value);
@@ -300,11 +309,12 @@ void Webserver::handSubmitConfigRequest(AsyncWebServerRequest *request)
                 this->_config.getMQTTPort()
             );
             mqtt_updated = true;
+            mqtt_endpoint_updated = true;
         }
     }
 
-    if (request->hasParam("mqtt-account")) {
-        String account = request->getParam("mqtt-account")->value();
+    if (hasFormParam("mqtt-account")) {
+        String account = formParamValue("mqtt-account");
         account.trim();
         if (!this->_config.getMQTTAccount().equals(account)) {
             this->_config.setMQTTAccount(account);
@@ -313,20 +323,24 @@ void Webserver::handSubmitConfigRequest(AsyncWebServerRequest *request)
                 this->_config.getMQTTAccount().c_str()
             );
             mqtt_updated = true;
+            mqtt_endpoint_updated = true;
         }
     }
 
-    if (request->hasParam("mqtt-password")) {
-        String password = request->getParam("mqtt-password")->value();
+    if (hasFormParam("mqtt-password")) {
+        String password = formParamValue("mqtt-password");
         password.trim();
-        if (!this->_config.getMQTTPassword().equals(password)) {
+        if (shouldUpdateSecret(password, mqtt_endpoint_updated, this->_config.getMQTTPassword().length() == 0)) {
+          if (!this->_config.getMQTTPassword().equals(password)) {
             this->_config.setMQTTPassword(password);
+            Serial.println(F("  The MQTT password has been updated."));
             mqtt_updated = true;
+          }
         }
     }
 
-    if (request->hasParam("mqtt-discovery-prefix")) {
-        String prefix = request->getParam("mqtt-discovery-prefix")->value();
+    if (hasFormParam("mqtt-discovery-prefix")) {
+        String prefix = formParamValue("mqtt-discovery-prefix");
         prefix.trim();
         if (!this->_config.getMQTTDiscoveryPrefix().equals(prefix)) {
             this->_config.setMQTTDiscoveryPrefix(prefix);
@@ -390,7 +404,7 @@ String Webserver::processConfigPageHTML(const String& var)
     } else if (var == "WIFI_SSID") {
         return this->_config.getWifiSSID();
     } else if (var == "WIFI_PASSWORD") {
-        return this->_config.getWifiPassword();
+        return String();
     } else if (var == "MQTT_CHECKED") {
         if (this->_config.getMQTTEnabled()) {
             return String("checked");
@@ -404,7 +418,7 @@ String Webserver::processConfigPageHTML(const String& var)
     } else if (var == "MQTT_ACCOUNT") {
         return this->_config.getMQTTAccount();
     } else if (var == "MQTT_PASSWORD") {
-        return this->_config.getMQTTPassword();
+        return String();
     } else if (var == "MQTT_DISCO_PREFIX") {
         return this->_config.getMQTTDiscoveryPrefix();
     }

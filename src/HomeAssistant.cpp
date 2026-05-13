@@ -4,6 +4,8 @@
 #include "Utilities.h"
 #include "Application.h"
 
+#define MQTT_RECONNECT_INTERVAL_MS (10 * 1000)
+
 HomeAssistant::HomeAssistant(
     Configuration& config
 ) : _config(config),
@@ -12,7 +14,10 @@ HomeAssistant::HomeAssistant(
     _stateTopic(),
     _commandTopic(),
     _ledBrightnessTopic(),
-    _deviceHash()
+    _deviceHash(),
+    _lastReconnectAttemptMs(0),
+    _discoveryPending(false),
+    _hasBME680(false)
 {
     _client.setBufferSize(2048);
 
@@ -31,41 +36,47 @@ void HomeAssistant::begin(bool hasBME680)
 {
     stop();
     if (_config.getMQTTEnabled()) {
+        _hasBME680 = hasBME680;
+        _discoveryPending = true;
         String topic_prefix = String("diy_air_quality_sensor/") + _config.getSensorID();
         _stateTopic = topic_prefix + String("/state");
         _commandTopic = topic_prefix + String("/command");
         _ledBrightnessTopic = topic_prefix + String("/led_brightness");
-        reconnectClient();
-        sendDeviceDiscoveryMsgs(hasBME680);
+        if (reconnectClient()) {
+            sendDeviceDiscoveryMsgs(_hasBME680);
+            _discoveryPending = false;
+        }
     }
 }
 
-void HomeAssistant::reconnectClient(void) {
+bool HomeAssistant::reconnectClient(void) {
+    _lastReconnectAttemptMs = millis();
+    if (!_config.getMQTTEnabled() || (_config.getMQTTServer().length() == 0)) {
+        return false;
+    }
+
     const char *account_ptr = _config.getMQTTAccount().length() > 0 ? _config.getMQTTAccount().c_str() : nullptr;
     const char *password_ptr = _config.getMQTTPassword().length() > 0 ? _config.getMQTTPassword().c_str() : nullptr;
     _client.setServer(
         _config.getMQTTServer().c_str(),
         _config.getMQTTPort()
     );
-    Serial.print(F("Connecting to MQTT"));
-    while (!_client.connected()) {
-        Serial.print(".");
+    _client.setKeepAlive(3600);
 
-        if (_client.connect("DIY Air Quality Sensor", account_ptr, password_ptr)) {
-            // keep alive for at least 1 hour
-            _client.setKeepAlive(3600);
-            Serial.println(_stateTopic);
-            _client.setCallback(std::bind(&HomeAssistant::mqttCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-            _client.subscribe(_commandTopic.c_str());
-            _client.subscribe(_ledBrightnessTopic.c_str());
-            Serial.print(F("\nConnected to MQTT with state topic = "));
-            Serial.println(_stateTopic);
-        } else {
-            Serial.println(F("\nERROR - failed MQTT connections with state "));
-            Serial.println(_client.state());
-            delay(2000);
-        }
+    String clientID = buildMQTTClientID(_deviceHash);
+    Serial.print(F("Connecting to MQTT ... "));
+    if (_client.connect(clientID.c_str(), account_ptr, password_ptr)) {
+        _client.setCallback(std::bind(&HomeAssistant::mqttCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+        _client.subscribe(_commandTopic.c_str());
+        _client.subscribe(_ledBrightnessTopic.c_str());
+        Serial.print(F("connected with state topic = "));
+        Serial.println(_stateTopic);
+        return true;
     }
+
+    Serial.print(F("failed with state = "));
+    Serial.println(_client.state());
+    return false;
 }
 
 void HomeAssistant::stop(void)
@@ -74,9 +85,13 @@ void HomeAssistant::stop(void)
         _client.unsubscribe(_commandTopic.c_str());
         _client.unsubscribe(_ledBrightnessTopic.c_str());
         _client.setCallback(nullptr);
-        _client.disconnect();
-        _stateTopic = String();
     }
+    _client.disconnect();
+    _client.setCallback(nullptr);
+    _stateTopic = String();
+    _commandTopic = String();
+    _ledBrightnessTopic = String();
+    _discoveryPending = false;
 }
 
 void HomeAssistant::publishState(const String& stateJSONString)
@@ -88,12 +103,15 @@ void HomeAssistant::publishState(const String& stateJSONString)
         }
 
         if (_client.connected()) {
+            if (_discoveryPending) {
+                sendDeviceDiscoveryMsgs(_hasBME680);
+                _discoveryPending = false;
+            }
             Serial.println(F("Publishing state to MQTT"));
             _client.publish(_stateTopic.c_str(), stateJSONString.c_str());
         } else {
             Serial.println(F("ERROR - failed to publish state to MQTT with connection state = "));
             Serial.println(_client.state());
-            Application::getInstance()->resetMQTTConnection();
         }
     }
 }
@@ -102,7 +120,14 @@ void HomeAssistant::loop()
 {
     if (_config.getMQTTEnabled()) {
         if (!_client.connected()) {
-            reconnectClient();
+            if ((millis() - _lastReconnectAttemptMs) >= MQTT_RECONNECT_INTERVAL_MS) {
+                reconnectClient();
+            }
+            return;
+        }
+        if (_discoveryPending) {
+            sendDeviceDiscoveryMsgs(_hasBME680);
+            _discoveryPending = false;
         }
         _client.loop();
     }

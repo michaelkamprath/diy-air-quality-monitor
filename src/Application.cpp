@@ -13,6 +13,7 @@ const int   daylightOffset_sec = 0;
 
 #define SEALEVELPRESSURE_HPA (1013.25)
 #define UNSET_ENVIRONMENT_VALUE -301.0
+#define WIFI_CONNECT_TIMEOUT_MS (60 * 1000)
 
 //
 // Application
@@ -61,32 +62,28 @@ Application::~Application()
 
 }
 
-void Application::connectWifi(void)
+bool Application::connectWifi(void)
 {
   WiFi.disconnect();
-  while (WiFi.status() != WL_CONNECTED) {
-    Serial.printf(
-      "Starting Wifi connection to SSID = %s, password = %s\n",
-      this->_config.getWifiSSID().c_str(),
-      this->_config.getWifiPassword().c_str()
-    );
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(this->_config.getWifiSSID().c_str(), this->_config.getWifiPassword().c_str());
-    int counter = 0;
-    // TODO attempt to connect for 5 minutes. If fail, return to AP mode
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(F("."));
-        counter++;
-        if (counter > 35) {
-          // start over again
-          WiFi.disconnect();
-          Serial.println(F(""));
-          delay(10*1000);
-          break;
-        }
-    }
+  WiFi.mode(WIFI_STA);
+  Serial.printf(
+    "Starting Wifi connection to SSID = %s\n",
+    this->_config.getWifiSSID().c_str()
+  );
+  WiFi.begin(this->_config.getWifiSSID().c_str(), this->_config.getWifiPassword().c_str());
+
+  unsigned long startTime = millis();
+  while ((WiFi.status() != WL_CONNECTED) && ((millis() - startTime) < WIFI_CONNECT_TIMEOUT_MS)) {
+    delay(500);
+    Serial.print(F("."));
   }
+
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println(F("\nERROR - Failed to connect to WiFi before timeout."));
+    WiFi.disconnect();
+    return false;
+  }
+
   Serial.print(F("\nWiFi connected with ip address = "));
   Serial.print(WiFi.localIP());
   Serial.print(F("\n"));
@@ -94,7 +91,29 @@ void Application::connectWifi(void)
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   printLocalTime();
   time(&_boot_time);
+  return true;
 }
+
+void Application::startCaptivePortal(void)
+{
+  Serial.println(F("Starting captive portal ..."));
+  WiFi.disconnect();
+  WiFi.mode(WIFI_AP);
+  IPAddress apIP(192, 168, 4, 1);
+  WiFi.softAPConfig(
+    apIP, apIP,
+    IPAddress(255, 255, 255, 0)
+  );
+  // TODO append AP name with a hash of the MAC address to keep unique.
+  WiFi.softAP("DIY Air Quality Sensor");
+  Serial.print(F("AP IP address: "));
+  Serial.println(WiFi.softAPIP());
+  this->_dnsServer.stop();
+  this->_dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+  this->_dnsServer.start(53, "*", WiFi.softAPIP());
+  this->_wifiCaptivePortalMode = true;
+}
+
 void Application::setup(void)
 {
   // Initialize SPIFFS
@@ -108,21 +127,11 @@ void Application::setup(void)
   if (this->_config.getWifiSSID().length() == 0) {
     // There is no wifi set up. Initiate the captive portal
     Serial.println(F("No SSID saved for WiFi. Starting captive portal ..."));
-    // WiFi.mode(WIFI_OFF);
-    WiFi.mode(WIFI_AP);
-    WiFi.softAPConfig(
-      WiFi.softAPIP(), WiFi.softAPIP(),
-      IPAddress(255, 255, 255, 0)
-    );
-    // TODO append AP name with a hash of the MAC addres to keep unique.
-    WiFi.softAP("DIY Air Quality Sensor");
-    Serial.print(F("AP IP address: "));
-    Serial.println(WiFi.softAPIP());
-    this->_dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
-    this->_dnsServer.start(53, "*", WiFi.softAPIP());
-    this->_wifiCaptivePortalMode = true;
+    this->startCaptivePortal();
   } else {
-    this->connectWifi();
+    if (!this->connectWifi()) {
+      this->startCaptivePortal();
+    }
   }
 
   if (!_bme680.begin(BME680_SENSOR_I2C_ADDRESS)) {
@@ -408,15 +417,21 @@ void Application::loop(void)
     Serial.println(F("WiFi credentials updted. Changing WiFi connection ..."));
     this->webServer().stop();
     this->_ha.stop();
-    this->connectWifi();
-    if (!this->_sensor.isInitialized()) {
-      Serial.println(F("Starting the air quality sensor ..."));
-      this->_sensor.begin();
+    if (this->connectWifi()) {
+      this->_dnsServer.stop();
+      if (!this->_sensor.isInitialized()) {
+        Serial.println(F("Starting the air quality sensor ..."));
+        this->_sensor.begin();
+      }
+      Serial.println(F("Recofiguring the web server ..."));
+      this->webServer().startNormal();
+      this->_ha.begin(_hasBME680);
+      this->_wifiCaptivePortalMode = false;
+    } else {
+      Serial.println(F("WiFi connection failed. Returning to captive portal mode."));
+      this->startCaptivePortal();
+      this->webServer().startCaptivePortal(WiFi.softAPIP());
     }
-    Serial.println(F("Recofiguring the web server ..."));
-    this->webServer().startNormal();
-    this->_ha.begin(_hasBME680);
-    this->_wifiCaptivePortalMode = false;
     this->_resetDeviceForNewWifi = false;
     this->_resetMQTTConnection = false;
   }

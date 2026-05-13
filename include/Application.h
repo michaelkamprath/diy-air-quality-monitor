@@ -49,7 +49,8 @@ private:
     bool _resetMQTTConnection;
 
     void printLocalTime(void);
-    void connectWifi(void);
+    bool connectWifi(void);
+    void startCaptivePortal(void);
 
     void setLEDColorForAQI(float aqi_value);
 

@@ -14,9 +14,12 @@ private:
     String _commandTopic;
     String _ledBrightnessTopic;
     String _deviceHash;
+    unsigned long _lastReconnectAttemptMs;
+    bool _discoveryPending;
+    bool _hasBME680;
 
     void populateDeviceInformation(DynamicJsonDocument& json);
-    void reconnectClient(void);
+    bool reconnectClient(void);
     void sendSensorDiscoveryMessage(
             String name,
             String entity_prefix,
